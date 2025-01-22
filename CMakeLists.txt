@@ -8,9 +8,10 @@ add_library(fabm_models_nersc OBJECT
             dvm/upper_lower_boundaries.F90
             dvm/weight_distribution.F90
             dvm/move.F90
+            dvm/apply_move.F90
            )
 
-target_link_libraries(fabm_models_nersc PRIVATE fabm_base)
+add_dependencies(fabm_models_nersc fabm_base)
 
 #-----------------------------------------------------------------------
 # Copyright (C) 2014 - Karsten Bolding and Jorn Bruggeman (BB)         !

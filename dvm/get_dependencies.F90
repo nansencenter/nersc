@@ -39,7 +39,7 @@ contains
         call self%register_dependency(self%id_par0, standard_variables%surface_downwelling_photosynthetic_radiative_flux)
 
         call self%get_parameter(self%nprey,'nprey','','number of prey types',default=0)
-        call self%register_diagnostic_variable(self%id_migrator_food,'migrator_food','mgC/m3','food availability for the migrators', missing_value=0.0_rk, source=source_do)
+        call self%register_diagnostic_variable(self%id_migrator_food,'migrator_food','mgC/m3','food availability for the migrators', act_as_state_variable=.true., missing_value=0.0_rk, source=source_do)
         ! Get prey-specific coupling links.
         allocate(self%id_prey(self%nprey))
         do iprey=1,self%nprey
@@ -58,7 +58,7 @@ contains
         _HORIZONTAL_LOOP_BEGIN_
 
             _GET_SURFACE_(self%id_par0,par0)
-            if (par0 < 1E-10_rk) then
+            if (par0 < 5.0_rk) then
                 _SET_HORIZONTAL_DIAGNOSTIC_(self%id_light_present0, 0.0_rk)
             else
                 _SET_HORIZONTAL_DIAGNOSTIC_(self%id_light_present0, 24.0_rk/86400_rk) 
