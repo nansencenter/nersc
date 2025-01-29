@@ -1,14 +1,22 @@
 instances:
   CO2:
     initialization:
+#      alk: 2300.0     
       TA: 2300.0
+#      dic: 2150.0
       c: 2200.0
+#    model: pml/carbonate
     model: ersem/carbonate
+#    parameters:
+#      alk_param: false
+#      pCO2a: 0.0
   ECO:
     coupling:
-      Om_cal_target: CO2_Om_cal
+#      alk_target: CO2_alk
       alk_target: CO2_TA
+#      dic_target: CO2_dic
       dic_target: CO2_c
+      Om_cal_target : CO2_Om_cal
     initialization:
       ccl: 0.1
       cclchl: 0.005
@@ -16,7 +24,7 @@ instances:
       dia: 0.1
       diachl: 0.005
       dom: 3.0
-      dsnk: 5.78703e-06
+      dsnk: 0.00000578703 #5.78703e-06
       fla: 0.1
       flachl: 0.005
       mesozoo: 0.01
@@ -30,106 +38,110 @@ instances:
       sed2: 56.65
       sed3: 82.2
       sil: 1000.0
-    model: nersc/ecosmo
+      caco3: 0.001
+      sed4: 0.12
+    model: nersc_ecosmo_operational
     parameters:
-      EXdet: 0.0
-      EXdom: 0.0
-      EXphy: 0.0339
-      GrZlCocco: 0.99
-      GrZlP: 0.92
-      GrZlZ: 0.559
-      GrZsCocco: 1.01
-      GrZsP: 1.05
-      Km2Cocco: 285.18
-      Km2Pl: 285.18
-      Km2Ps: 285.18
-      Km2Zl: 285.18
-      Km2Zs: 285.18
+      EXdet: 0.16218644594775256
+      EXdom: 0.18206465359221413
+      EXphy: 0.05737798064012768
+      EXw: 0.0
+      GrBG: 0.3
+      GrZlCocco: 0.7769637253802724
+      GrZlP: 1.003199804613716
+      GrZlZ: 0.651520632758415
+      GrZsCocco: 0.8220185363922763
+      GrZsP: 1.0468512244901955
       MAXchl2nBG: 2.94
-      MAXchl2nCocco: 3.08
-      MAXchl2nPl: 2.95
-      MAXchl2nPs: 3.39
+      MAXchl2nCocco: 2.909109674943266
+      MAXchl2nPl: 3.0372677406785864
+      MAXchl2nPs: 3.965572400772463
       MINchl2nBG: 0.265
       MINchl2nCocco: 0.265
       MINchl2nPl: 0.265
       MINchl2nPs: 0.265
       RelSEDp1: 0.15
       RelSEDp2: 0.1
-      RgZl: 0.427
-      RgZs: 0.552
+      Rg: 0.312584437360757
+      TctrlBG: 1.0
       TctrlDenit: 0.15
+      TrefBG: 0.0
+      Wa: 1.0
+      aa: 0.012
+      aaCocco: 0.012
       alfaBG: 0.0393
-      alfaCocco: 0.0259
-      alfaPl: 0.0595
-      alfaPs: 0.0369
+      alfaCocco: 0.027425382580523176
+      alfaPl: 0.052934504493722
+      alfaPs: 0.03607171783720603
       bg_growth_minimum_daily_rad: 120.0
       burialRt: 5.0e-05
       couple_co2: true
-      excZl: 0.078
-      excZs: 0.078
+      crBotStr: 0.1
+      excZl: 0.04403486599215825
+      excZs: 0.08714044191386569
       frr: 0.4
-      gammaZd: 0.3
+      gammaZd: 0.75
       gammaZlp: 0.75
       gammaZsp: 0.75
-      m2Pl: 0.285
-      m2Ps: 0.285
-      m2Zl: 0.085
-      m2Zs: 0.085
-      mPl: 0.0411
-      mPs: 0.0411
-      mZl: 0.0388
-      mZs: 0.0388
-      mort2Cocco: 0.285
-      mortCocco: 0.0411
-      muCocco: 0.4
-      muPl: 0.62
-      muPs: 0.43
+      mBG: 0.08
+      mPl: 0.031348437662825634
+      mPs: 0.06365708110575044
+      mZl: 0.09911600382090516
+      mZs: 0.11028879619755176
+      mortCocco: 0.054109459525741435
+      muBG: 1.0
+      muCocco: 0.8014272576418688 #1.0304064741109744 #1.144896082345527*0.7
+      muPl: 0.8237788749037909 #1.0591442677334455 #1.1768269641482727*0.7
+      muPs: 0.7416155445468932 #0.9535057001317199 #1.0594507779241331*0.7
       nfixation_minimum_daily_par: 35.0
       prefZlBG: 0.0
-      prefZlCocco: 0.19
-      prefZlD: 0.07
-      prefZlPl: 0.54
-      prefZlPs: 0.07
-      prefZlZs: 0.11
+      prefZlCocco: 0.10822359868340212
+      prefZlD: 0.07899416724779108
+      prefZlPl: 0.6868956967859073
+      prefZlPs: 0.09114418153535897
+      prefZlZs: 0.12672644585969808
       prefZsBG: 0.0
-      prefZsCocco: 0.1
-      prefZsD: 0.06
-      prefZsPl: 0.2
-      prefZsPs: 0.65
+      prefZsCocco: 0.6038277835378616
+      prefZsD: 0.07117228080131453
+      prefZsPl: 0.21789107017287904
+      prefZsPs: 0.6980824230234718
       psi: 3.0
-      rNH4: 0.2
-      rNH4cocco: 0.2
-      rNO3: 0.5
-      rNO3cocco: 1.0
-      rPO4: 0.05
-      rPO4cocco: 0.0015
-      rSi: 0.5
-      regenSi: 0.015
-      reminD: 0.00315
+      rNH4: 0.19366425022217326
+      rNH4cocco: 0.20485784370590895
+      rNO3: 0.3051778650305304
+      rNO3cocco: 1.2799486782560001
+      rPO4: 0.032232466583701366
+      rPO4cocco: 0.0014576155887900115
+      rSi: 0.4587977996253693
+      regenSi: 0.017778933764916446
+      reminD: 0.0022363219456459377
       reminSED: 0.001
       reminSEDsi: 0.0002
       resuspRt: 25.0
       sedimRt: 5.0
+      sinkBG: -1.0
       sinkBgD: 0.0
-      sinkCocco: 1.5
-      sinkCoccoD: 5.73
-      sinkDet: 5.0
+      sinkCocco: 2.0033704284845104
+      sinkCoccoD: 7.529233110676893
+      sinkDet: 4.235452062634495
       sinkDia: 0.0
-      sinkDiaD: 5.59
-      sinkFlaD: 0.468
-      sinkMesD: 7.96
-      sinkMicD: 0.987
+      sinkDiaD: 3.617930677666418
+      sinkFlaD: 0.8084024042854088
+      sinkMesD: 6.940953984360677
+      sinkMicD: 2.2238329396822882
       sinkOPAL: 5.0
       surface_deposition_nh4: 0.0
       surface_deposition_no3: 0.0
       surface_deposition_pho: 0.0
       surface_deposition_sil: 0.0
       turn_on_additional_diagnostics: true
+      upliftBG: 0.1
       use_chl: true
       use_chl_in_PI_curve: true
       use_coccolithophores: true
       use_community_sinking: true
       use_cyanos: false
+      zpr: 0.0
   light:
     model: gotm/light
     parameters:

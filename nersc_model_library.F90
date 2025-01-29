@@ -18,13 +18,6 @@ contains
    subroutine create(self,name,model)
 
       use fabm_nersc_ecosmo_operational
-      use fabm_nersc_ecosmo
-      use fabm_nersc_ecosmo_gmd_2023_25
-      use dvm_conservative_migrator
-      use dvm_get_dependencies
-      use dvm_upper_lower_boundaries
-      use dvm_weight_distribution
-      use dvm_move
       ! Add new models here
 
       class (type_factory),intent(in) :: self
