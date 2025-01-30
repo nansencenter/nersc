@@ -55,6 +55,9 @@
       type (type_state_variable_id)         :: id_cocco, id_caco3
       type (type_dependency_id)             :: id_Om_cal
       type (type_bottom_state_variable_id)  :: id_sed4 ! CaCO3 in sediment
+      !
+      type (type_dependency_id)             :: id_thickness
+      !type (type_global_dependency_id)             :: id_time_step
 
 !     Model parameters
       real(rk) :: BioC(45)
@@ -84,6 +87,9 @@
       real(rk) :: Km2Pl, Km2Ps, Km2Zl, Km2Zs, Km2Cocco
       real(rk) :: RgZl
       ! 
+      ! 2025 additions from EU NECCTON project WP5
+      real(rk) :: exulim, qexcr, KsLightDep
+
       ! community dependent sinking parameters
       real(rk) :: sinkDiaD,sinkFlaD,sinkMicD,sinkMesD,sinkBgD, sinkCoccoD
       ! coccolithophore + caco3 parameters
@@ -115,6 +121,7 @@
       procedure :: do_bottom
       procedure :: get_light_extinction
       procedure :: get_vertical_movement      
+      procedure :: check_state
 
    end type type_nersc_ecosmo
 !EOP
@@ -298,6 +305,10 @@
    call self%get_parameter( self%use_chl_in_PI_curve, 'use_chl_in_PI_curve','','activated chl dependent light limitation',default=.false.)
    call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)
    call self%get_parameter( self%use_coccolithophores,     'use_coccolithophores', '', 'switch coccolithophores', default=.false.)
+   ! 2025 additions from EU NECCTON project WP5
+   call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.3_rk)
+   call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.05_rk)
+   call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=0.001_rk)
    ! Register state variables
    call self%register_state_variable( self%id_no3,      'no3',     'mgC/m3',    'nitrate',                   minimum=0.0_rk,        vertical_movement=0.0_rk,  &
                                       initial_value=5.0_rk*redf(1)*redf(6)  )
@@ -415,6 +426,8 @@
    end if
 
    ! Register dependencies
+   !call self%register_dependency(self%id_time_step, standard_variables%maximum_time_step)
+   call self%register_dependency(self%id_thickness, standard_variables%cell_thickness)
    call self%register_dependency(self%id_temp,standard_variables%temperature)
    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
    call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
@@ -487,6 +500,15 @@ end subroutine initialize
    real(rk) :: highMortPl, highMortPs, highMortZl, highMortZs, highMortCocco
    real(rk) :: sumgpp, sumnetpp
    !
+
+   ! 2025 additions from EU NECCTON project WP5 --------
+   !
+   ! experimental light dependent mortality for mesozoo
+   real(rk) :: light_dep_mort
+   ! exudation
+   real(rk) :: exu_dia, exu_fla, exu_cocco, exu_bg
+   real(rk) :: rhs_dom
+   ! ---------------------------------------------------
 
 ! local variables for cyanobacteria
    real(rk) :: bg, bgchl, chl2c_bg
@@ -600,12 +622,16 @@ end subroutine initialize
    up_pho = pho/(self%BioC(25)+pho)
    t_sil = max(sil-self%SiUptLim,0.0_rk)
    up_sil = t_sil/(self%BioC(26)+t_sil)
+   ! exudation multiplier
+   exu_dia = min(1.0_rk,( ( 1.0_rk - min(up_n, up_pho, up_sil) ) * self%exulim + self%qexcr )) * dia_loss
+   exu_fla = min(1.0_rk,( ( 1.0_rk - min(up_n, up_pho) ) * self%exulim + self%qexcr )) * fla_loss   
    ! coccolithophore specific limitation
    if (self%use_coccolithophores) then
       up_nh4_cocco = nh4/(self%rNH4cocco+nh4)
       up_no3_cocco = no3/(self%rNO3cocco+no3)*exp(-self%BioC(8)*nh4)
       up_pho_cocco = pho/(self%rPO4cocco+pho)
       up_n_cocco = up_nh4_cocco+up_no3_cocco
+      exu_cocco = min(1.0_rk,( ( 1.0_rk - min(up_n_cocco, up_pho_cocco) ) * self%exulim + self%qexcr )) * cocco_loss
    else
       up_nh4_cocco = 0.0_rk
       up_no3_cocco = 0.0_rk
@@ -649,6 +675,7 @@ end subroutine initialize
 
    if (self%use_cyanos) then
      Bg_prod = Tbg * min(blight, up_n, up_pho)
+     exu_bg = min(1.0_rk,( ( 1.0_rk - min(up_n, up_pho) ) * self%exulim + self%qexcr )) * bg_loss
      if (mean_par > self%nfixation_minimum_daily_par) then
        Bg_fix = Tbg * min(blight, up_pho) - Bg_prod
      end if
@@ -787,35 +814,40 @@ end subroutine initialize
      end if
    end if
 
+   ! light dependent mortality multiplier
+   light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreases
+
 ! reaction rates
    highMortPs = self%m2Ps * ( fla/(fla + self%Km2Ps) )  
    highMortPl = self%m2Pl * ( dia/(dia + self%Km2Pl) )
    highMortZs = self%m2Zs * ( microzoo/(microzoo + self%Km2Zs) )
-   highMortZl = self%m2Zl * ( mesozoo/(mesozoo + self%Km2Zl) )
+   highMortZl = self%m2Zl * ( mesozoo/(mesozoo + self%Km2Zl) ) * light_dep_mort
    if (self%use_coccolithophores) then 
       highMortCocco = self%mort2Cocco * ( cocco/(cocco + self%Km2Cocco) )
    end if
-   _SET_ODE_(self%id_fla, (self%BioC(2)*Ps_prod - self%BioC(10)*fla_loss - highMortPs*fla_loss )*fla - ZsonPs*microzoo - ZlonPs*mesozoo)
-   _SET_ODE_(self%id_dia, (self%BioC(1)*Pl_prod - self%BioC(9)*dia_loss - highMortPl*dia_loss )*dia - ZsonPl*microzoo - ZlonPl*mesozoo)
+   _SET_ODE_(self%id_fla, (self%BioC(2)*Ps_prod*(1.0_rk - exu_fla) - self%BioC(10)*fla_loss - highMortPs*fla_loss )*fla - ZsonPs*microzoo - ZlonPs*mesozoo)
+   _SET_ODE_(self%id_dia, (self%BioC(1)*Pl_prod*(1.0_rk - exu_dia) - self%BioC(9)*dia_loss - highMortPl*dia_loss )*dia - ZsonPl*microzoo - ZlonPl*mesozoo)
    if (self%use_cyanos) then
-     _SET_ODE_(self%id_bg,  (self%BioC(28)*(Bg_prod + Bg_fix) - self%BioC(32)*bg_loss)*bg - ZsonBg*microzoo - ZlonBg*mesozoo)
+     _SET_ODE_(self%id_bg,  (self%BioC(28)*(Bg_prod + Bg_fix)*(1.0_rk - exu_bg) - self%BioC(32)*bg_loss)*bg - ZsonBg*microzoo - ZlonBg*mesozoo)
    end if
    if (self%use_coccolithophores) then
-     _SET_ODE_(self%id_cocco, (self%muCocco*Cocco_prod - self%mortCocco*cocco_loss  - highMortCocco*cocco_loss )*cocco - ZsonCocco*microzoo - ZlonCocco*mesozoo)
+     _SET_ODE_(self%id_cocco, (self%muCocco*Cocco_prod*(1.0_rk - exu_cocco) - self%mortCocco*cocco_loss  - highMortCocco*cocco_loss )*cocco - ZsonCocco*microzoo - ZlonCocco*mesozoo)
    end if
+
+
 
   ! for chlorophyll-a
    if (self%use_chl) then
-     rhs = self%BioC(2)*Ps_prod*chl2c_fla*fla - ( ( (self%BioC(10) + highMortPs) * fla_loss * fla + ZsonPs*microzoo + ZlonPs*mesozoo)*flachl/fla )
+     rhs = self%BioC(2)*Ps_prod*chl2c_fla*fla*(1.0_rk - exu_fla) - ( ( (self%BioC(10) + highMortPs) * fla_loss * fla + ZsonPs*microzoo + ZlonPs*mesozoo)*flachl/fla )
      _SET_ODE_(self%id_flachl,rhs)
-     rhs = self%BioC(1)*Pl_prod*chl2c_dia*dia - ( ( (self%BioC(9) + highMortPl) * dia_loss * dia + ZsonPl*microzoo + ZlonPl*mesozoo)*diachl/dia )
+     rhs = self%BioC(1)*Pl_prod*chl2c_dia*dia*(1.0_rk - exu_dia) - ( ( (self%BioC(9) + highMortPl) * dia_loss * dia + ZsonPl*microzoo + ZlonPl*mesozoo)*diachl/dia )
      _SET_ODE_(self%id_diachl,rhs)
      if (self%use_cyanos) then
-       rhs = self%BioC(28)*(Bg_prod + Bg_fix)*chl2c_bg*bg - ((self%BioC(32)*bg*bg_loss + ZsonBg*microzoo + ZlonBg*mesozoo)*bgchl/bg )
+       rhs = self%BioC(28)*(Bg_prod + Bg_fix)*chl2c_bg*bg*(1.0_rk - exu_bg) - ((self%BioC(32)*bg*bg_loss + ZsonBg*microzoo + ZlonBg*mesozoo)*bgchl/bg )
        _SET_ODE_(self%id_bgchl,rhs)
      end if 
      if (self%use_coccolithophores) then
-       rhs = self%muCocco*Cocco_prod*chl2c_cocco*cocco - ( ( (self%mortCocco + highMortCocco) * cocco_loss * cocco + ZsonCocco*microzoo + ZlonCocco*mesozoo)*coccochl/cocco )
+       rhs = self%muCocco*Cocco_prod*chl2c_cocco*cocco*(1.0_rk - exu_cocco) - ( ( (self%mortCocco + highMortCocco) * cocco_loss * cocco + ZsonCocco*microzoo + ZlonCocco*mesozoo)*coccochl/cocco )
        _SET_ODE_(self%id_coccochl,rhs)
      end if
    end if
@@ -829,7 +861,7 @@ end subroutine initialize
 
    ! mesozooplankton
    Zl_prod = self%BioC(19)*(ZlonPs + ZlonPl + ZlonBg + ZlonZs + ZlonCocco) + self%BioC(21)*ZlonD
-   rhs = (Zl_prod - (self%BioC(15) + self%BioC(17) + highMortZl + self%zpr)*mes_loss) * mesozoo
+   rhs = (Zl_prod - (self%BioC(15)*max(0.5_rk,light_dep_mort) + self%BioC(17) + highMortZl + self%zpr)*mes_loss) * mesozoo
    _SET_ODE_(self%id_mesozoo, rhs)
 
    ! detritus
@@ -838,7 +870,7 @@ end subroutine initialize
               + ((1.0_rk-self%BioC(19))*(ZlonPs + ZlonPl + ZlonBg + ZlonZs + ZlonCocco) &
               + (1.0_rk-self%BioC(21))*ZlonD) * mesozoo &
               + (self%BioC(16) + highMortZs) * microzoo * mic_loss &
-              + (self%BioC(15) + highMortZl) * mesozoo * mes_loss &
+              + (self%BioC(15)*max(0.5_rk,light_dep_mort) + highMortZl) * mesozoo * mes_loss &
               + (self%BioC(10) + highMortPs) * fla * fla_loss &
               + (self%BioC(9) + highMortPl)  * dia * dia_loss)
    if (self%use_cyanos) then
@@ -865,7 +897,7 @@ end subroutine initialize
                + ((1.0_rk-self%BioC(19))*(ZlonPs * self%sinkFlaD + ZlonPl * self%sinkDiaD + ZlonBg * self%sinkBgD + ZlonZs * self%sinkMicD + ZlonCocco * self%sinkCoccoD) &
                + (1.0_rk-self%BioC(21)) * ZlonD * dsnk/det) * mesozoo &
                + (self%BioC(16) + highMortZs) * microzoo * mic_loss * self%sinkMicD &
-               + (self%BioC(15) + highMortZl) * mesozoo * mes_loss * self%sinkMesD &
+               + (self%BioC(15)*max(0.5_rk,light_dep_mort) + highMortZl) * mesozoo * mes_loss * self%sinkMesD &
                + (self%BioC(10) + highMortPs) * fla * fla_loss * self%sinkFlaD &
                + (self%BioC(9) + highMortPl)  * dia * dia_loss * self%sinkDiaD )
       if (self%use_cyanos) then
@@ -889,7 +921,19 @@ end subroutine initialize
    endif
 
    ! labile dissolved organic matter
-   _SET_ODE_(self%id_dom, self%frr*dxxdet - fremDOM * dom)
+   !_SET_ODE_(self%id_dom, self%frr*dxxdet - fremDOM * dom)
+
+   rhs_dom = self%frr*dxxdet - fremDOM * dom &
+            + self%BioC(2) * Ps_prod * exu_fla * fla &
+            + self%BioC(1) * Ps_prod * exu_dia * dia 
+            if (self%use_cyanos) then
+               rhs_dom = rhs_dom + self%BioC(28) * (Bg_prod + Bg_fix) * exu_bg * bg
+            end if
+            if (self%use_coccolithophores) then
+               rhs_dom = rhs_dom + self%muCocco * Cocco_prod * cocco * exu_cocco 
+            end if
+
+   _SET_ODE_(self%id_dom, rhs_dom)
 
    ! nitrate
    rhs_nit = -(up_no3+0.5d-10)/(up_n+1.0d-10)*(Prod_Dia_Fla + Prod_BG) &
@@ -1133,6 +1177,10 @@ end subroutine initialize
    real(rk) :: pho, Rds, Rsd, Rsa, Rsdenit, Rsa_p, yt1, yt2
    real(rk) :: rhs, flux, alk_flux
    real(rk) :: bioom1, bioom2, bioom3, bioom4, bioom5, bioom6, bioom7, bioom8
+   real(rk) :: thickness
+   real(rk) :: opal_sedimentation, det_sedimentation, caco3_sedimentation, dsnk_sedimentation
+   real(rk) :: long_time_step_for_assumed_sedimentation_flux = 600.0_rk
+   real(rk) :: time_step
    ! add community sinking local variables
    real(rk) :: dsnk
    ! add coccolithophores + caco3 variables
@@ -1143,6 +1191,8 @@ end subroutine initialize
 !BOC
    _HORIZONTAL_LOOP_BEGIN_
 
+   !_GET_GLOBAL_(self%id_time_step, time_step)
+   _GET_(self%id_thickness,thickness)
    _GET_(self%id_temp,temp)
    _GET_(self%id_oxy,oxy)
    _GET_(self%id_det,det)
@@ -1200,9 +1250,9 @@ end subroutine initialize
         else if (tbs.lt.self%BioC(34)) then
           Rsd=0.0_rk
           Rds=self%BioC(36)
-          if (self%use_community_sinking) then
-            Rds=dsnk/det
-          end if
+          !if (self%use_community_sinking) then
+          !  Rds=dsnk/det
+          !end if
         end if
 
 !---------------------------------------------------------------
@@ -1216,13 +1266,21 @@ end subroutine initialize
         end if
 
         !--- sediment 1 total sediment biomass and nitrogen pool
-        rhs = Rds*det - Rsd*sed1 - 2.0_rk*Rsa*sed1 - Rsdenit*sed1 &
+        det_sedimentation = Rds*det
+        if (det_sedimentation * long_time_step_for_assumed_sedimentation_flux > det * thickness) det_sedimentation = 0.0_rk
+
+!        rhs = Rds*det - Rsd*sed1 - 2.0_rk*Rsa*sed1 - Rsdenit*sed1 &
+!              -(2.0E-3*self%BioC(37)*sed1)*sed1 !- self%BioC(37)*sed1
+        rhs = det_sedimentation - Rsd*sed1 - 2.0_rk*Rsa*sed1 - Rsdenit*sed1 &
               -(2.0E-3*self%BioC(37)*sed1)*sed1 !- self%BioC(37)*sed1
         _SET_BOTTOM_ODE_(self%id_sed1, rhs)
 
         ! community sinking variable exchange
         if (self%use_community_sinking) then
-          _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - Rds*det*dsnk/det)
+            dsnk_sedimentation = Rds*dsnk
+            if (dsnk_sedimentation * long_time_step_for_assumed_sedimentation_flux > dsnk * thickness) dsnk_sedimentation = 0.0_rk
+          !_SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - Rds*det*dsnk/det)
+          _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - dsnk_sedimentation)
          end if
 
         ! oxygen
@@ -1236,7 +1294,8 @@ end subroutine initialize
         _SET_BOTTOM_EXCHANGE_(self%id_no3, -BioOM5*Rsdenit*sed1)
 
         ! detritus
-        _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - Rds*det)
+!        _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - Rds*det)
+        _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - det_sedimentation)
 
         ! ammonium
         _SET_BOTTOM_EXCHANGE_(self%id_nh4, (Rsdenit+Rsa)*sed1)
@@ -1247,11 +1306,16 @@ end subroutine initialize
 !          rhs = Rds*caco3*caco3_loss - Rsd*sed4 - self%BioC(42)*sed4 &
 !                -(2.0E-3*self%BioC(37)*sed4)*sed4 
 !          _SET_BOTTOM_ODE_(self%id_sed4, rhs)
-!          _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3*caco3_loss) 
-          rhs = Rds*caco3 - Rsd*sed4 - self%BioC(42)*sed4 &
-                -(2.0E-3*self%BioC(37)*sed4)*sed4 
+!          _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3*caco3_loss)
+          caco3_sedimentation = Rds*caco3
+          if (caco3_sedimentation * long_time_step_for_assumed_sedimentation_flux > caco3 * thickness) caco3_sedimentation = 0.0_rk 
+         ! rhs = Rds*caco3 - Rsd*sed4 - self%BioC(42)*sed4 &
+         !       -(2.0E-3*self%BioC(37)*sed4)*sed4
+          rhs = caco3_sedimentation - Rsd*sed4 - self%BioC(42)*sed4 &
+                -(2.0E-3*self%BioC(37)*sed4)*sed4  
           _SET_BOTTOM_ODE_(self%id_sed4, rhs)
-          _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3)
+          !_SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3)
+          _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - caco3_sedimentation)
         end if
 
         if (self%couple_co2) then
@@ -1277,10 +1341,17 @@ end subroutine initialize
         end if
 
         ! sediment opal(Si)
+        opal_sedimentation = 2.0*Rds*opa
+        if (opal_sedimentation * long_time_step_for_assumed_sedimentation_flux > opa * thickness) opal_sedimentation = 0.0_rk
 !        _SET_BOTTOM_ODE_(self%id_sed2, Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - ( self%BioC(37)*1000.*(sed2**3/(sed2**3 + 1E+12)) )*sed2)
-        _SET_BOTTOM_ODE_(self%id_sed2, 2.0*Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - (2.0E-3*self%BioC(37)*sed2)*sed2)
-        _SET_BOTTOM_EXCHANGE_(self%id_opa, Rsd*sed2 - 2.0*Rds*opa)
-!        _SET_BOTTOM_EXCHANGE_(self%id_opa, Rsd*sed2 - Rds*opa)
+
+
+!        _SET_BOTTOM_ODE_(self%id_sed2, 2.0*Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - (2.0E-3*self%BioC(37)*sed2)*sed2)
+!        _SET_BOTTOM_EXCHANGE_(self%id_opa, Rsd*sed2 - 2.0*Rds*opa)
+        _SET_BOTTOM_ODE_(self%id_sed2, opal_sedimentation - Rsd*sed2 - self%BioC(42)*sed2 - (2.0E-3*self%BioC(37)*sed2)*sed2)
+        _SET_BOTTOM_EXCHANGE_(self%id_opa, Rsd*sed2 - opal_sedimentation)
+
+        !        _SET_BOTTOM_EXCHANGE_(self%id_opa, Rsd*sed2 - Rds*opa)
         _SET_BOTTOM_EXCHANGE_(self%id_sil, self%BioC(42)*sed2)
 
         if (self%turn_on_additional_diagnostics) then
@@ -1361,20 +1432,18 @@ end subroutine initialize
          _GET_(self%id_det, det)
          _GET_(self%id_dsnk, dsnk)
 
-         meanspd = dsnk / det
-!         ! Below is necessary for HYCOM. For GOTM runs, this is redundant. The
-!         ! community sinking is quite conservative, but with HYCOM
-!         ! vanishing/reappearing layers, it is very unstable. So below replaces
-!         ! the sinking speed to initial detritus sinking speed given in
-!         ! fabm.yaml file. For now any value outside the prescribed minimum and
-!         ! maximum will be replaced, and dsnk variable modified accordingly.
-!         minspd = min( self%sinkDiaD, self%sinkFlaD, self%sinkMicD, self%sinkMesD, self%sinkCoccoD)
-!         maxspd = max( self%sinkDiaD, self%sinkFlaD, self%sinkMicD,self%sinkMesD, self%sinkCoccoD)
-!         if ( meanspd .lt. minspd .or. meanspd .gt. maxspd) then
-!            meanspd = self%BioC(23)
-!            _SET_(self%id_dsnk, meanspd * det)
-!         end if
-         
+         meanspd = dsnk / max(det,1E-10_rk)
+
+         minspd = min( self%sinkFlaD, self%sinkDiaD, self%sinkMicD, self%sinkMesD )
+         maxspd = max( self%sinkFlaD, self%sinkDiaD, self%sinkMicD, self%sinkMesD )
+         if (self%use_coccolithophores) then
+            minspd = min( minspd, self%sinkCoccoD)
+            maxspd = max( maxspd, self%sinkCoccoD)
+         end if
+
+         meanspd = max(meanspd, minspd)
+         meanspd = min(meanspd, maxspd)
+
          _SET_VERTICAL_MOVEMENT_(self%id_det,-meanspd)
          _SET_VERTICAL_MOVEMENT_(self%id_dsnk,-meanspd)
          _SET_VERTICAL_MOVEMENT_(self%id_opa,-meanspd)
@@ -1390,8 +1459,55 @@ end subroutine initialize
          end if 
        endif
        _LOOP_END_
- end subroutine get_vertical_movement
-! -------------------------------------------------------------------------
+   end subroutine get_vertical_movement
+
+   subroutine check_state(self,_ARGUMENTS_CHECK_STATE_)
+      class (type_nersc_ecosmo), intent(in) :: self
+      _DECLARE_ARGUMENTS_CHECK_STATE_
+
+      real(rk) :: minspd,maxspd,meanspd
+      real(rk) :: det, dsnk
+      real(rk) :: alk, dic
+      _LOOP_BEGIN_
+
+         ! Variable sinking speed min/max check !
+         if (self%use_community_sinking) then
+            _GET_(self%id_det, det)
+            _GET_(self%id_dsnk, dsnk)
+
+            meanspd = dsnk / max(det, 1E-10_rk)
+            minspd = min( self%sinkFlaD, self%sinkDiaD, self%sinkMicD, self%sinkMesD )
+            maxspd = max( self%sinkFlaD, self%sinkDiaD, self%sinkMicD, self%sinkMesD )
+            if (self%use_coccolithophores) then
+               minspd = min( minspd, self%sinkCoccoD)
+               maxspd = max( maxspd, self%sinkCoccoD)
+            end if
+
+            if ( meanspd < minspd ) then
+               _SET_(self%id_dsnk, max(det,1E-10_rk) * minspd)
+            end if
+
+            if ( meanspd > maxspd ) then
+               _SET_(self%id_dsnk, max(det,1E-10_rk) * maxspd)
+            end if         
+
+         end if
+         !       !
+
+         ! Make sure DIC and ALK stay in acceptable limits !
+         ! This is sometimes necessary as DIC drops too low in river discharge ares causing model to stop
+         if (self%couple_co2) then
+            _GET_(self%id_dic,dic)
+            _GET_(self%id_alk,alk)
+            _SET_(self%id_dic,max(900.0_rk,dic))
+            _SET_(self%id_alk,max(900.0_rk,alk))
+         end if
+         !        !       
+      _LOOP_END_ 
+   end subroutine check_state
+
+ ! -------------------------------------------------------------------------
+
 
    end module fabm_nersc_ecosmo
 

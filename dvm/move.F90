@@ -17,15 +17,17 @@ type, extends(type_base_model) :: type_move
     type (type_dependency_id)          :: id_random_weights
     type (type_dependency_id)          :: id_thickness
     type (type_state_variable_id)      :: id_target
+    type (type_horizontal_dependency_id)      :: id_target0
     type (type_bottom_dependency_id)   :: id_integral
     type (type_bottom_dependency_id)   :: id_integral_random_weights
 !    type (type_bottom_diagnostic_variable_id) :: id_integral_random_weights_fabm
     type (type_diagnostic_variable_id) :: id_distributed
+!    type (type_bottom_diagnostic_variable_id)      :: id_target0_out
     real(rk) :: tstep, m, ratioMig
     contains
         procedure :: initialize
-        procedure :: do
-!        procedure :: check_state
+!        procedure :: do
+        procedure :: check_state
     end type
 
 contains
@@ -36,28 +38,29 @@ contains
         integer,         intent(in)            :: configunit
 
         call self%register_state_dependency(self%id_target, 'target', '', 'variable to apply sources and sinks to')
+        call self%register_dependency(self%id_target0,vertical_integral(self%id_target))
         call self%register_dependency(self%id_random_weights,'migrator_random_weights','-','migrators distribution random weights')
         call self%register_dependency(self%id_integral,'integral','','depth-integrated target variable')
         call self%register_dependency(self%id_integral_random_weights,'migrator_integral_random_weights','','migrators distribution integral random weights')
-        call self%register_diagnostic_variable(self%id_distributed,'migrator_distributed_mass','-','migrators final mass distribution', missing_value=0.0_rk, source=source_do)
+!        call self%register_diagnostic_variable(self%id_distributed,'migrator_distributed_mass','-','migrators final mass distribution', missing_value=0.0_rk, source=source_do)
         call self%register_dependency(self%id_thickness, standard_variables%cell_thickness)
         call self%get_parameter( self%tstep,  'tstep',    'sec',      'time-step in seconds', default=600.0_rk)
         call self%get_parameter( self%ratioMig,  'ratioMig',    '-',      'ratio of moving biomass', default=0.5_rk)
-
+!        call self%register_diagnostic_variable(self%id_target0_out,'migrator_integrated_mass','-','migrators final integrated mass', missing_value=0.0_rk, source=source_check_state)
 !        call self%register_dependency(self%id_integral_random_weights_fabm,vertical_integral(self%id_random_weights))
 
     end subroutine initialize
 
-!    subroutine check_state(self,_ARGUMENTS_CHECK_STATE_)
-!        class (type_move), intent(in) :: self
-!        _DECLARE_ARGUMENTS_CHECK_STATE_
+   subroutine check_state(self,_ARGUMENTS_CHECK_STATE_)
+       class (type_move), intent(in) :: self
+       _DECLARE_ARGUMENTS_CHECK_STATE_
 
-    subroutine do(self, _ARGUMENTS_DO_)
-        class (type_move), intent(in) :: self
-        _DECLARE_ARGUMENTS_DO_
+    ! subroutine do(self, _ARGUMENTS_DO_)
+    !     class (type_move), intent(in) :: self
+    !     _DECLARE_ARGUMENTS_DO_
     
         real(rk) :: integral, integral_random_weights, integral_random_weights_fabm, random_weights
-        real(rk) :: local, distributed, thickness
+        real(rk) :: local, distributed, thickness, target0
         real(rk) :: mortality_switch, local_loss
         !real(rk) :: final_concentration
     
@@ -72,6 +75,7 @@ contains
            _GET_BOTTOM_(self%id_integral_random_weights,integral_random_weights)
 !           _GET_BOTTOM_(self%id_integral_random_weights_fabm,integral_random_weights_fabm)
            _GET_(self%id_target,local)
+           _GET_HORIZONTAL_(self%id_target0,target0)
            _GET_(self%id_random_weights,random_weights)
            _GET_(self%id_thickness,thickness)
     
@@ -102,7 +106,8 @@ contains
 !           if (.not.ieee_is_finite( integral/thickness ) ) write(*,*)'INToverTHK_NOT_FINITE',integral/thickness
 !        if ( ieee_is_finite(final_concentration) ) then
 !           if (thickness>1.0_rk) then 
-           _SET_DIAGNOSTIC_(self%id_distributed,local * (1.0_rk - self%ratioMig) + (distributed * integral/thickness) * self%ratioMig)
+           !_SET_DIAGNOSTIC_(self%id_distributed,local * (1.0_rk - self%ratioMig) + (distributed * integral/thickness) * self%ratioMig)
+! BU BU          _ADD_SOURCE_(self%id_target,  max(-max(local,0.0_rk),(distributed * integral/thickness - max(local,0.0_rk) ) * self%ratioMig) / self%tstep) 
 !           else
 !            _SET_DIAGNOSTIC_(self%id_distributed,local)
 !           end if
@@ -111,13 +116,15 @@ contains
 !        else
 !            _SET_(self%id_target, local )
 !        end if 
-
-!           _SET_(self%id_target, max(0.0_rk,local * (1.0_rk - self%ratioMig) + (distributed * integral/thickness) * self%ratioMig ) )
+            !write(*,*) integral,target0 
+           _SET_(self%id_target, max(0.0_rk,local * (1.0_rk - self%ratioMig) + (distributed * target0/thickness) * self%ratioMig ) )
+           !_SET_(self%id_target, local )
            !write(*,*)self%dt
     
         _LOOP_END_
-     end subroutine do
-!     end subroutine check_state
+!      _SET_BOTTOM_DIAGNOSTIC_(self%id_target0_out,target0)
+!     end subroutine do
+     end subroutine check_state
 
     !  subroutine check_state(self,_ARGUMENTS_CHECK_STATE_)
     !     class (type_move), intent(in) :: self
