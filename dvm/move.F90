@@ -116,8 +116,9 @@ contains
 !        else
 !            _SET_(self%id_target, local )
 !        end if 
-            !write(*,*) integral,target0 
-           _SET_(self%id_target, max(0.0_rk,local * (1.0_rk - self%ratioMig) + (distributed * target0/thickness) * self%ratioMig ) )
+            !write(*,*) integral,target0
+           ! 
+           _SET_(self%id_target, max(0.0_rk,local * (1.0_rk - self%ratioMig) + (distributed * target0/max(thickness,1.0E-10_rk)) * self%ratioMig ) )
            !_SET_(self%id_target, local )
            !write(*,*)self%dt
     

@@ -118,6 +118,7 @@ contains
                 search_food = 1.0_rk ! food has no effect
             end if
 
+            thickness = max(thickness, 1.0E-10_rk)
             if (present > 0.5_rk) then
                  local_random = thickness * (minimum_value + (1.0_rk - minimum_value) * local_random * search_food ) 
             else
