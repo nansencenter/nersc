@@ -16,6 +16,9 @@ type, extends(type_base_model), public :: type_get_dependencies
 !    type (type_horizontal_diagnostic_variable_id) :: id_integrated_food
     type (type_diagnostic_variable_id) :: id_migrator_food
     type (type_horizontal_dependency_id) :: id_par0
+    type (type_horizontal_dependency_id) :: id_lat
+    type (type_global_dependency_id)     :: id_yearday
+    type (type_horizontal_diagnostic_variable_id) :: id_daylength
 
     integer  :: nprey
     type (type_state_variable_id),  allocatable,dimension(:) :: id_prey
@@ -46,6 +49,9 @@ contains
             write (index,'(i0)') iprey
             call self%register_state_dependency(self%id_prey(iprey),'prey'//trim(index)//'','mgC/m3', 'prey '//trim(index)//' carbon concentration')
         end do
+        call self%register_dependency(self%id_lat,standard_variables%latitude)
+        call self%register_dependency(self%id_yearday,standard_variables%number_of_days_since_start_of_the_year)
+        call self%register_diagnostic_variable(self%id_daylength,'daylength','hours','number of hours light is available at the surface',source=source_do_surface)
 
     end subroutine initialize
 
@@ -54,7 +60,10 @@ contains
         class (type_get_dependencies),intent(in) :: self
         _DECLARE_ARGUMENTS_DO_SURFACE_
 
-        real(rk) :: par0
+        real(rk) :: par0, latitude, yearday, declination, day_length
+        real, parameter :: pi = 3.14159265358979323846
+        real(rk) :: inside_acos
+
         _HORIZONTAL_LOOP_BEGIN_
 
             _GET_SURFACE_(self%id_par0,par0)
@@ -63,6 +72,16 @@ contains
             else
                 _SET_HORIZONTAL_DIAGNOSTIC_(self%id_light_present0, 24.0_rk/86400_rk) 
             end if
+
+        _GET_SURFACE_(self%id_lat,latitude) ! degN
+        _GET_GLOBAL_ (self%id_yearday,yearday) !decimal day of the year
+
+        latitude = latitude * pi / 180.0
+        declination = 23.44 * pi / 180.0 * sin(2.0 * pi / 365.0 * (yearday - 81.0))
+        inside_acos = max( -1.0_rk, min( 1.0_rk,-tan(latitude) * tan(declination) ) )
+        day_length = 24.0 / pi * acos(inside_acos)
+        day_length = max(0.0_rk, min(24.0_rk, day_length))
+        _SET_HORIZONTAL_DIAGNOSTIC_(self%id_daylength, day_length)
 
         _HORIZONTAL_LOOP_END_
 

@@ -1179,7 +1179,7 @@ end subroutine initialize
    real(rk) :: bioom1, bioom2, bioom3, bioom4, bioom5, bioom6, bioom7, bioom8
    real(rk) :: thickness
    real(rk) :: opal_sedimentation, det_sedimentation, caco3_sedimentation, dsnk_sedimentation
-   real(rk) :: long_time_step_for_assumed_sedimentation_flux = 600.0_rk
+   real(rk) :: long_time_step_for_assumed_sedimentation_flux = 1200.0_rk
    real(rk) :: time_step
    ! add community sinking local variables
    real(rk) :: dsnk
@@ -1269,8 +1269,8 @@ end subroutine initialize
         det_sedimentation = Rds*det
         if (det_sedimentation * long_time_step_for_assumed_sedimentation_flux > det * thickness) det_sedimentation = 0.0_rk
 
-!        rhs = Rds*det - Rsd*sed1 - 2.0_rk*Rsa*sed1 - Rsdenit*sed1 &
-!              -(2.0E-3*self%BioC(37)*sed1)*sed1 !- self%BioC(37)*sed1
+        !rhs = Rds*det - Rsd*sed1 - 2.0_rk*Rsa*sed1 - Rsdenit*sed1 &
+        !      -(2.0E-3*self%BioC(37)*sed1)*sed1 !- self%BioC(37)*sed1
         rhs = det_sedimentation - Rsd*sed1 - 2.0_rk*Rsa*sed1 - Rsdenit*sed1 &
               -(2.0E-3*self%BioC(37)*sed1)*sed1 !- self%BioC(37)*sed1
         _SET_BOTTOM_ODE_(self%id_sed1, rhs)
@@ -1279,7 +1279,7 @@ end subroutine initialize
         if (self%use_community_sinking) then
             dsnk_sedimentation = Rds*dsnk
             if (dsnk_sedimentation * long_time_step_for_assumed_sedimentation_flux > dsnk * thickness) dsnk_sedimentation = 0.0_rk
-          !_SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - Rds*det*dsnk/det)
+         ! _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - Rds*det*dsnk/det)
           _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - dsnk_sedimentation)
          end if
 
@@ -1294,8 +1294,8 @@ end subroutine initialize
         _SET_BOTTOM_EXCHANGE_(self%id_no3, -BioOM5*Rsdenit*sed1)
 
         ! detritus
-!        _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - Rds*det)
-        _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - det_sedimentation)
+        _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - Rds*det)
+        !_SET_BOTTOM_EXCHANGE_(self%id_det, Rsd*sed1 - det_sedimentation)
 
         ! ammonium
         _SET_BOTTOM_EXCHANGE_(self%id_nh4, (Rsdenit+Rsa)*sed1)
@@ -1309,12 +1309,12 @@ end subroutine initialize
 !          _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3*caco3_loss)
           caco3_sedimentation = Rds*caco3
           if (caco3_sedimentation * long_time_step_for_assumed_sedimentation_flux > caco3 * thickness) caco3_sedimentation = 0.0_rk 
-         ! rhs = Rds*caco3 - Rsd*sed4 - self%BioC(42)*sed4 &
-         !       -(2.0E-3*self%BioC(37)*sed4)*sed4
+          !rhs = Rds*caco3 - Rsd*sed4 - self%BioC(42)*sed4 &
+          !      -(2.0E-3*self%BioC(37)*sed4)*sed4
           rhs = caco3_sedimentation - Rsd*sed4 - self%BioC(42)*sed4 &
                 -(2.0E-3*self%BioC(37)*sed4)*sed4  
           _SET_BOTTOM_ODE_(self%id_sed4, rhs)
-          !_SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3)
+         ! _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - Rds*caco3)
           _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd*sed4 - caco3_sedimentation)
         end if
 
@@ -1343,7 +1343,7 @@ end subroutine initialize
         ! sediment opal(Si)
         opal_sedimentation = 2.0*Rds*opa
         if (opal_sedimentation * long_time_step_for_assumed_sedimentation_flux > opa * thickness) opal_sedimentation = 0.0_rk
-!        _SET_BOTTOM_ODE_(self%id_sed2, Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - ( self%BioC(37)*1000.*(sed2**3/(sed2**3 + 1E+12)) )*sed2)
+!!        _SET_BOTTOM_ODE_(self%id_sed2, Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - ( self%BioC(37)*1000.*(sed2**3/(sed2**3 + 1E+12)) )*sed2)
 
 
 !        _SET_BOTTOM_ODE_(self%id_sed2, 2.0*Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - (2.0E-3*self%BioC(37)*sed2)*sed2)
