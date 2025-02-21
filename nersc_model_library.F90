@@ -23,6 +23,8 @@ contains
       use dvm_conservative_migrator
       use dvm_get_dependencies
       use dvm_upper_lower_boundaries
+      use dvm_upper_lower_boundaries_simple
+      use dvm_upper_lower_boundaries_complex
       use dvm_weight_distribution
       use dvm_move
       use dvm_apply_move
@@ -39,6 +41,8 @@ contains
          case ('dvm_conservative_migrator'); allocate(type_conservative_migrator::model)
          case ('dvm_get_dependencies'); allocate(type_get_dependencies::model)
          case ('dvm_upper_lower_boundaries'); allocate(type_upper_lower_boundaries::model)
+         case ('dvm_upper_lower_boundaries_simple'); allocate(type_upper_lower_boundaries_simple::model)
+         case ('dvm_upper_lower_boundaries_complex'); allocate(type_upper_lower_boundaries_complex::model)
          case ('dvm_weight_distribution'); allocate(type_weight_distribution::model)
          case ('dvm_move'); allocate(type_move::model)
          case ('dvm_apply_move'); allocate(type_apply_move::model)

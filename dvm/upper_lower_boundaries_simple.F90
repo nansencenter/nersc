@@ -1,6 +1,6 @@
 #include "fabm_driver.h"
 
-module dvm_upper_lower_boundaries
+module dvm_upper_lower_boundaries_simple
 
 use fabm_types
 use fabm_expressions
@@ -9,7 +9,7 @@ implicit none
 
 private 
 
-type, extends(type_base_model), public :: type_upper_lower_boundaries
+type, extends(type_base_model), public :: type_upper_lower_boundaries_simple
 
     type (type_dependency_id)                       :: id_par, id_parmean, id_migrator_food, id_depth 
     type (type_horizontal_dependency_id)            :: id_parmean0 
@@ -33,7 +33,7 @@ end type
 contains
 
     subroutine initialize(self, configunit)
-        class (type_upper_lower_boundaries), intent(inout), target :: self
+        class (type_upper_lower_boundaries_simple), intent(inout), target :: self
         integer, intent(in)                                  :: configunit
         !real(rk) :: par, par0, parmean, parmean0
 !call self%register_dependency(self%id_temp,standard_variables%temperature)
@@ -72,7 +72,7 @@ contains
 
     subroutine do(self, _ARGUMENTS_DO_)
 
-        class (type_upper_lower_boundaries), intent(in) :: self
+        class (type_upper_lower_boundaries_simple), intent(in) :: self
         _DECLARE_ARGUMENTS_DO_
     
         real(rk) :: par, par0, parmean, parmean0, nhours, food
@@ -117,35 +117,19 @@ contains
                 lower_presence = 0.0_rk
                 
                 ! Calculate possibilities above the lower boundary
-                if (food <= 17.12_rk) then
-                    if (food <= 17.08_rk) then
-                        if (depth < 155.57_rk) then
-                            upper_presence = 1.0_rk
-                        else
-                            upper_presence = 0.0_rk
-                        end if
+                ! if (food <= 17.12_rk) then
+                !     if (depth < 184.04_rk) then
+                !         upper_presence = 1.0_rk
+                !     else
+                !         upper_presence = 0.0_rk
+                !     end if
+                ! else
+                    if (depth < 240.0_rk) then
+                        upper_presence = 1.0_rk
                     else
-                        if (depth < 198.28_rk) then
-                            upper_presence = 1.0_rk
-                        else
-                            upper_presence = 0.0_rk
-                        end if
+                        upper_presence = 0.0_rk
                     end if
-                else
-                    if (food <= 18.04_rk) then
-                        if (depth < 271.48_rk) then
-                            upper_presence = 1.0_rk
-                        else
-                            upper_presence = 0.0_rk
-                        end if
-                    else
-                        if (depth < 227.54_rk) then
-                            upper_presence = 1.0_rk
-                        else
-                            upper_presence = 0.0_rk
-                        end if
-                    end if
-                end if
+!                end if
                 
                 ! Set diagnostic based on presence
                 if (upper_presence + lower_presence > 0.9_rk) then
@@ -166,65 +150,65 @@ contains
                     lower_presence = 0.0_rk
                     
                     ! Lowerlight Rules
-                    if (food <= 44.51_rk) then
-                        if (food <= 24.07_rk) then
-                            if (parmeanlog > -15.04_rk) then
+                    ! if (food <= 44.51_rk) then
+                    !     if (food <= 24.07_rk) then
+                            if (parmeanlog > -15.0_rk) then
                                 upper_presence = 1.0_rk
                             else
                                 upper_presence = 0.0_rk
                             end if
-                        else
-                            if (parmeanlog > -17.77_rk) then
-                                upper_presence = 1.0_rk
-                            else
-                                upper_presence = 0.0_rk
-                            end if
-                        end if
-                    else
-                        if (parmean0log <= 1.19_rk) then
-                            if (parmeanlog > -13.07_rk) then
-                                upper_presence = 1.0_rk
-                            else
-                                upper_presence = 0.0_rk
-                            end if
-                        else
-                            if (parmeanlog > -7.52_rk) then
-                                upper_presence = 1.0_rk
-                            else
-                                upper_presence = 0.0_rk
-                            end if
-                        end if
-                    end if
+                    !     else
+                    !         if (parmeanlog > -17.77_rk) then
+                    !             upper_presence = 1.0_rk
+                    !         else
+                    !             upper_presence = 0.0_rk
+                    !         end if
+                    !     end if
+                    ! else
+                    !     if (parmean0log <= 1.19_rk) then
+                    !         if (parmeanlog > -13.07_rk) then
+                    !             upper_presence = 1.0_rk
+                    !         else
+                    !             upper_presence = 0.0_rk
+                    !         end if
+                    !     else
+                    !         if (parmeanlog > -7.52_rk) then
+                    !             upper_presence = 1.0_rk
+                    !         else
+                    !             upper_presence = 0.0_rk
+                    !         end if
+                    !     end if
+                    ! end if
                     
                     ! Upperlight Rules
                     if (parmean0log <= 0.65_rk) then
-                        if (parmean0log <= 0.55_rk) then
-                            if (parlog < -7.86_rk) then
+                        !if (parmean0log <= 0.55_rk) then
+                            if (parlog < -8.0_rk) then
                                 lower_presence = 1.0_rk
                             else
                                 lower_presence = 0.0_rk
                             end if
-                        else
-                            if (parlog < -9.08_rk) then
-                                lower_presence = 1.0_rk
-                            else
-                                lower_presence = 0.0_rk
-                            end if
-                        end if
+                        !else
+                        !    if (parlog < -9.08_rk) then
+                        !        lower_presence = 1.0_rk
+                        !    else
+                        !        lower_presence = 0.0_rk
+                        !    end if
+                        !end if
                     else
-                        if (parmean0log <= 1.19_rk) then
-                            if (parlog < -4.51_rk) then
+                        !if (parmean0log <= 1.19_rk) then
+                            if (parlog < -4.0_rk) then
                                 lower_presence = 1.0_rk
                             else
                                 lower_presence = 0.0_rk
                             end if
-                        else
-                            if (parlog < -1.41_rk) then
-                                lower_presence = 1.0_rk
-                            else
-                                lower_presence = 0.0_rk
-                            end if
-                        end if
+                        !else
+                        !    if (parlog < -1.41_rk) then
+                        !        lower_presence = 1.0_rk
+                        !    else
+                        !        lower_presence = 0.0_rk
+                        !    end if
+                        !end if
                     end if
                                         
                     ! Set diagnostic based on presence
@@ -249,41 +233,17 @@ contains
                         lower_presence = 0.0_rk
                         
                         ! Lowerlight Rules
-                        if (food <= 17.24_rk) then
-                            if (parmeanlog > -7.68_rk) then
-                                upper_presence = 1.0_rk
-                            else
-                                upper_presence = 0.0_rk
-                            end if
+                        if (parmeanlog > -15.0_rk) then
+                            upper_presence = 1.0_rk
                         else
-                            if (parmeanlog > -15.77_rk) then
-                                upper_presence = 1.0_rk
-                            else
-                                upper_presence = 0.0_rk
-                            end if
+                            upper_presence = 0.0_rk
                         end if
                         
                         ! Upperlight Rules
-                        if (food <= 17.24_rk) then
-                            if (parlog < -1.63_rk) then
-                                lower_presence = 1.0_rk
-                            else
-                                lower_presence = 0.0_rk
-                            end if
+                        if (parlog < -7.0_rk) then
+                            lower_presence = 1.0_rk
                         else
-                            if (nhours <= 19.72_rk) then
-                                if (parlog < -6.42_rk) then
-                                    lower_presence = 1.0_rk
-                                else
-                                    lower_presence = 0.0_rk
-                                end if
-                            else
-                                if (parlog < -9.34_rk) then
-                                    lower_presence = 1.0_rk
-                                else
-                                    lower_presence = 0.0_rk
-                                end if
-                            end if
+                            lower_presence = 0.0_rk
                         end if
                         
                         
@@ -305,34 +265,10 @@ contains
                         lower_presence = 0.0_rk
                         
                         ! Calculate possibilities above the lower boundary
-                        if (food <= 17.23_rk) then
-                            if (par0log <= -0.81_rk) then
-                                if (parmeanlog > -12.94_rk) then
-                                    upper_presence = 1.0_rk
-                                else
-                                    upper_presence = 0.0_rk
-                                end if
-                            else
-                                if (parmeanlog > -8.29_rk) then
-                                    upper_presence = 1.0_rk
-                                else
-                                    upper_presence = 0.0_rk
-                                end if
-                            end if
+                        if (parmeanlog > -15.0_rk) then
+                            upper_presence = 1.0_rk
                         else
-                            if (food <= 19.11_rk) then
-                                if (parmeanlog > -15.32_rk) then
-                                    upper_presence = 1.0_rk
-                                else
-                                    upper_presence = 0.0_rk
-                                end if
-                            else
-                                if (parmeanlog > -18.76_rk) then
-                                    upper_presence = 1.0_rk
-                                else
-                                    upper_presence = 0.0_rk
-                                end if
-                            end if
+                            upper_presence = 0.0_rk
                         end if
                         
                         ! Set diagnostic based on presence

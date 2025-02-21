@@ -70,7 +70,14 @@ contains
         integral_random = 0.0_rk
         totalthk = 0.0_rk
         depth_threshold = 600.0_rk
-        counter = -1.0_rk
+!        counter = -1.0_rk
+
+        ! count_presence = 0
+        ! counter = 0
+        ! depth_threshold
+
+        ! if (present > 0.5_rk .and. counter == 0) counter = 1
+        ! if (present < 0.5_rk .and. counter == 1) counter = 2 depth_threshold = depth 
 
         _VERTICAL_LOOP_BEGIN_
 
@@ -112,13 +119,13 @@ contains
 !                depth_threshold = depth
 !            end if
 
-            if (par0 <= 1E-3_rk) then
+            if (par0 <= 1.0_rk) then
                 search_food = food
             else
                 search_food = 1.0_rk ! food has no effect
             end if
 
-            thickness = max(thickness, 1.0E-10_rk)
+            thickness = max(thickness, 1.0E-20_rk)
             if (present > 0.5_rk) then
                  local_random = thickness * (minimum_value + (1.0_rk - minimum_value) * local_random * search_food ) 
             else
@@ -126,7 +133,7 @@ contains
                      local_random = thickness * (minimum_value + (0.2_rk - minimum_value) * local_random * search_food )  
                 else
                      local_random = thickness * (minimum_value + (0.2_rk - minimum_value) &
-                         * exp(-0.005_rk * (depth - min(depth_threshold, topo))) * local_random * search_food ) 
+                         * exp(-0.025_rk * (depth - min(depth_threshold, topo))) * local_random * search_food ) 
                 end if 
             end if
 
