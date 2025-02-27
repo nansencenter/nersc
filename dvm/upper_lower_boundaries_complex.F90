@@ -112,41 +112,103 @@ contains
             upper_presence = 0.0_rk
             lower_presence = 0.0_rk
 
-            if (nhours < 0.1_rk) then
+            if (nhours < 0.05_rk) then
                 upper_presence = 0.0_rk
                 lower_presence = 0.0_rk
                 
                 ! Calculate possibilities above the lower boundary
-                if (food <= 17.12_rk) then
-                    if (food <= 17.08_rk) then
-                        if (depth < 155.57_rk) then
-                            upper_presence = 1.0_rk
+                ! if (food <= 17.12_rk) then
+                !     if (food <= 17.08_rk) then
+                !         if (depth < 155.57_rk) then
+                !             upper_presence = 1.0_rk
+                !         else
+                !             upper_presence = 0.0_rk
+                !         end if
+                !     else
+                !         if (depth < 198.28_rk) then
+                !             upper_presence = 1.0_rk
+                !         else
+                !             upper_presence = 0.0_rk
+                !         end if
+                !     end if
+                ! else
+                !     if (food <= 18.04_rk) then
+                !         if (depth < 271.48_rk) then
+                !             upper_presence = 1.0_rk
+                !         else
+                !             upper_presence = 0.0_rk
+                !         end if
+                !     else
+                !         if (depth < 227.54_rk) then
+                !             upper_presence = 1.0_rk
+                !         else
+                !             upper_presence = 0.0_rk
+                !         end if
+                !     end if
+                ! end if
+
+                if (food <= 17.11_rk) then
+                    if (food <= 17.10_rk) then
+                        if (food <= 17.06_rk) then
+                            if (depth < 189.32_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         else
-                            upper_presence = 0.0_rk
+                            if (depth < 155.73_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         end if
                     else
-                        if (depth < 198.28_rk) then
-                            upper_presence = 1.0_rk
+                        if (food <= 17.10_rk) then
+                            if (depth < 205.15_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         else
-                            upper_presence = 0.0_rk
+                            if (depth < 175.82_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         end if
                     end if
                 else
-                    if (food <= 18.04_rk) then
-                        if (depth < 271.48_rk) then
-                            upper_presence = 1.0_rk
+                    if (food <= 18.94_rk) then
+                        if (food <= 17.11_rk) then
+                            if (depth < 221.23_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         else
-                            upper_presence = 0.0_rk
+                            if (depth < 281.96_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         end if
                     else
-                        if (depth < 227.54_rk) then
-                            upper_presence = 1.0_rk
+                        if (parmean0log <= -11.44_rk) then
+                            if (depth < 220.22_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         else
-                            upper_presence = 0.0_rk
+                            if (depth < 283.68_rk) then
+                                upper_presence = 1.0_rk
+                            else
+                                upper_presence = 0.0_rk
+                            end if
                         end if
                     end if
                 end if
-                
+
                 ! Set diagnostic based on presence
                 if (upper_presence + lower_presence > 0.9_rk) then
                     _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
@@ -157,7 +219,7 @@ contains
             else
 
                 ! CASE 2
-                if (nhours > 23.9_rk) then
+                if (nhours > 23.95_rk) then
                     ! there is an upper and a lower light boundary
                     ! first calculate possibilities above the lower boundary
 
@@ -337,32 +399,159 @@ contains
                     !     end if
                     ! end if
 
-                    ! lower light rules
-                    if (food <= 44.51_rk) then
-                        if (food <= 24.07_rk) then
-                            if (food <= 18.25_rk) then
-                                if (food <= 18.09_rk) then
-                                    if (parmeanlog > -15.21_rk) then
+                    ! ! lower light rules
+                    ! if (food <= 44.51_rk) then
+                    !     if (food <= 24.07_rk) then
+                    !         if (food <= 18.25_rk) then
+                    !             if (food <= 18.09_rk) then
+                    !                 if (parmeanlog > -15.21_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -14.17_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (par0log <= 0.66_rk) then
+                    !                 if (parmeanlog > -14.99_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -15.55_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     else
+                    !         if (food <= 36.45_rk) then
+                    !             if (par0log <= 0.45_rk) then
+                    !                 if (parmeanlog > -17.88_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -16.45_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (food <= 38.43_rk) then
+                    !                 if (parmeanlog > -18.35_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -17.27_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     end if
+                    ! else
+                    !     if (par0log <= 1.49_rk) then
+                    !         if (par0log <= 1.01_rk) then
+                    !             if (par0log <= 0.91_rk) then
+                    !                 if (parmeanlog > -13.45_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -10.88_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (par0log <= 1.08_rk) then
+                    !                 if (parmeanlog > -15.48_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -13.28_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     else
+                    !         if (par0log <= 1.66_rk) then
+                    !             if (par0log <= 1.56_rk) then
+                    !                 if (parmeanlog > -9.06_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -13.13_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (par0log <= 1.68_rk) then
+                    !                 if (parmeanlog > -6.19_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parmeanlog > -7.65_rk) then
+                    !                     upper_presence = 1.0_rk
+                    !                 else
+                    !                     upper_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     end if
+                    ! end if
+
+! lower light rules
+                    if (parmean0log <= 0.67_rk) then
+                        if (parmean0log <= 0.48_rk) then
+                            if (food <= 22.83_rk) then
+                                if (food <= 22.04_rk) then
+                                    if (parmeanlog > -13.41_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -14.17_rk) then
+                                    if (parmeanlog > -14.32_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (par0log <= 0.66_rk) then
-                                    if (parmeanlog > -14.99_rk) then
+                                if (parmean0log <= -0.25_rk) then
+                                    if (parmeanlog > -17.29_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -15.55_rk) then
+                                    if (parmeanlog > -15.23_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
@@ -370,29 +559,29 @@ contains
                                 end if
                             end if
                         else
-                            if (food <= 36.45_rk) then
-                                if (par0log <= 0.45_rk) then
-                                    if (parmeanlog > -17.88_rk) then
+                            if (parmean0log <= 0.60_rk) then
+                                if (parmean0log <= 0.57_rk) then
+                                    if (parmeanlog > -17.36_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -16.45_rk) then
+                                    if (parmeanlog > -15.35_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (food <= 38.43_rk) then
-                                    if (parmeanlog > -18.35_rk) then
+                                if (food <= 22.06_rk) then
+                                    if (parmeanlog > -18.53_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -17.27_rk) then
+                                    if (parmeanlog > -17.92_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
@@ -401,30 +590,30 @@ contains
                             end if
                         end if
                     else
-                        if (par0log <= 1.49_rk) then
-                            if (par0log <= 1.01_rk) then
-                                if (par0log <= 0.91_rk) then
-                                    if (parmeanlog > -13.45_rk) then
+                        if (parmean0log <= 1.11_rk) then
+                            if (parmean0log <= 0.90_rk) then
+                                if (parmean0log <= 0.86_rk) then
+                                    if (parmeanlog > -11.75_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -10.88_rk) then
+                                    if (parmeanlog > -5.86_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (par0log <= 1.08_rk) then
-                                    if (parmeanlog > -15.48_rk) then
+                                if (parmean0log <= 1.00_rk) then
+                                    if (parmeanlog > -14.07_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -13.28_rk) then
+                                    if (parmeanlog > -11.08_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
@@ -432,29 +621,29 @@ contains
                                 end if
                             end if
                         else
-                            if (par0log <= 1.66_rk) then
-                                if (par0log <= 1.56_rk) then
-                                    if (parmeanlog > -9.06_rk) then
+                            if (par0log <= 1.32_rk) then
+                                if (par0log <= 1.18_rk) then
+                                    if (parmeanlog > -8.54_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -13.13_rk) then
+                                    if (parmeanlog > -14.97_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (par0log <= 1.68_rk) then
-                                    if (parmeanlog > -6.19_rk) then
+                                if (parmean0log <= 1.24_rk) then
+                                    if (parmeanlog > -7.83_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parmeanlog > -7.65_rk) then
+                                    if (parmeanlog > -10.14_rk) then
                                         upper_presence = 1.0_rk
                                     else
                                         upper_presence = 0.0_rk
@@ -591,32 +780,159 @@ contains
                     !     end if
                     ! end if       
                     
-                    ! Upperlight Rules
-                    if (par0log <= 1.12_rk) then
-                        if (food <= 38.73_rk) then
-                            if (food <= 36.10_rk) then
-                                if (par0log <= 1.01_rk) then
-                                    if (parlog < -8.14_rk) then
+                    ! ! Upperlight Rules
+                    ! if (par0log <= 1.12_rk) then
+                    !     if (food <= 38.73_rk) then
+                    !         if (food <= 36.10_rk) then
+                    !             if (par0log <= 1.01_rk) then
+                    !                 if (parlog < -8.14_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -6.68_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (food <= 38.31_rk) then
+                    !                 if (parlog < -9.61_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -8.08_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     else
+                    !         if (par0log <= 0.67_rk) then
+                    !             if (par0log <= 0.65_rk) then
+                    !                 if (parlog < -6.52_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -10.37_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (par0log <= 0.95_rk) then
+                    !                 if (parlog < -5.31_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -6.12_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     end if
+                    ! else
+                    !     if (par0log <= 1.51_rk) then
+                    !         if (par0log <= 1.39_rk) then
+                    !             if (par0log <= 1.16_rk) then
+                    !                 if (parlog < -5.51_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -4.60_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (par0log <= 1.50_rk) then
+                    !                 if (parlog < -3.73_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -7.10_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     else
+                    !         if (par0log <= 1.66_rk) then
+                    !             if (par0log <= 1.56_rk) then
+                    !                 if (parlog < -2.04_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -4.24_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         else
+                    !             if (par0log <= 1.83_rk) then
+                    !                 if (parlog < -1.29_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             else
+                    !                 if (parlog < -0.76_rk) then
+                    !                     lower_presence = 1.0_rk
+                    !                 else
+                    !                     lower_presence = 0.0_rk
+                    !                 end if
+                    !             end if
+                    !         end if
+                    !     end if
+                    ! end if
+
+!Upperlight Rules
+                    if (food <= 49.69_rk) then
+                        if (parmean0log <= -0.25_rk) then
+                            if (parmean0log <= -0.34_rk) then
+                                if (food <= 24.52_rk) then
+                                    if (parlog < -8.30_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -6.68_rk) then
+                                    if (parlog < -6.64_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (food <= 38.31_rk) then
-                                    if (parlog < -9.61_rk) then
+                                if (food <= 23.52_rk) then
+                                    if (parlog < -5.45_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -8.08_rk) then
+                                    if (parlog < -6.15_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
@@ -624,29 +940,29 @@ contains
                                 end if
                             end if
                         else
-                            if (par0log <= 0.67_rk) then
-                                if (par0log <= 0.65_rk) then
-                                    if (parlog < -6.52_rk) then
+                            if (food <= 18.18_rk) then
+                                if (par0log <= 0.80_rk) then
+                                    if (parlog > 0.78_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -10.37_rk) then
+                                    if (parlog < -2.50_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (par0log <= 0.95_rk) then
-                                    if (parlog < -5.31_rk) then
+                                if (food <= 25.48_rk) then
+                                    if (parlog < -8.80_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -6.12_rk) then
+                                    if (parlog < -7.57_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
@@ -655,30 +971,30 @@ contains
                             end if
                         end if
                     else
-                        if (par0log <= 1.51_rk) then
-                            if (par0log <= 1.39_rk) then
-                                if (par0log <= 1.16_rk) then
-                                    if (parlog < -5.51_rk) then
+                        if (parmean0log <= 1.11_rk) then
+                            if (parmean0log <= 0.90_rk) then
+                                if (parmean0log <= 0.86_rk) then
+                                    if (parlog < -4.53_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -4.60_rk) then
+                                    if (parlog < -1.49_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (par0log <= 1.50_rk) then
-                                    if (parlog < -3.73_rk) then
+                                if (par0log <= 1.21_rk) then
+                                    if (parlog < -6.08_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -7.10_rk) then
+                                    if (parlog < -4.64_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
@@ -686,29 +1002,29 @@ contains
                                 end if
                             end if
                         else
-                            if (par0log <= 1.66_rk) then
-                                if (par0log <= 1.56_rk) then
-                                    if (parlog < -2.04_rk) then
+                            if (par0log <= 1.32_rk) then
+                                if (par0log <= 1.26_rk) then
+                                    if (parlog < -7.94_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -4.24_rk) then
+                                    if (parlog < -9.67_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 end if
                             else
-                                if (par0log <= 1.83_rk) then
-                                    if (parlog < -1.29_rk) then
+                                if (parmean0log <= 1.24_rk) then
+                                    if (parlog < -1.36_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
                                     end if
                                 else
-                                    if (parlog < -0.76_rk) then
+                                    if (parlog < -3.08_rk) then
                                         lower_presence = 1.0_rk
                                     else
                                         lower_presence = 0.0_rk
@@ -739,32 +1055,134 @@ contains
                         upper_presence = 0.0_rk
                         lower_presence = 0.0_rk
                         
-                        ! Lowerlight Rules
-                        if (food <= 17.24_rk) then
-                            if (food <= 17.24_rk) then
-                                if (food <= 17.23_rk) then
-                                    if (par0log <= 0.03_rk) then
-                                        if (parmeanlog > -7.42_rk) then
+                        ! ! Lowerlight Rules
+                        ! if (food <= 17.24_rk) then
+                        !     if (food <= 17.24_rk) then
+                        !         if (food <= 17.23_rk) then
+                        !             if (par0log <= 0.03_rk) then
+                        !                 if (parmeanlog > -7.42_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -6.86_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (nhours <= 10.72_rk) then
+                        !                 if (parmeanlog > -7.84_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -8.17_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     else
+                        !         if (parmeanlog > -10.67_rk) then
+                        !             upper_presence = 1.0_rk
+                        !         else
+                        !             upper_presence = 0.0_rk
+                        !         end if
+                        !     end if
+                        ! else
+                        !     if (par0log <= 1.40_rk) then
+                        !         if (food <= 19.06_rk) then
+                        !             if (food <= 17.71_rk) then
+                        !                 if (parmeanlog > -15.04_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -11.98_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (parmean0log <= 0.63_rk) then
+                        !                 if (parmeanlog > -18.30_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -15.77_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     else
+                        !         if (par0log <= 1.54_rk) then
+                        !             if (nhours <= 15.38_rk) then
+                        !                 if (parmeanlog > -10.34_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -13.08_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (parmean0log <= 1.01_rk) then
+                        !                 if (parmeanlog > -10.97_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -9.51_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     end if
+                        ! end if
+! Lowerlight Rules
+                        if (nhours <= 10.17_rk) then
+                            if (food <= 34.54_rk) then
+                                if (food <= 17.18_rk) then
+                                    if (par0log <= 0.09_rk) then
+                                        if (parmeanlog > -12.07_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -6.86_rk) then
+                                        if (parmeanlog > -8.31_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (nhours <= 10.72_rk) then
-                                        if (parmeanlog > -7.84_rk) then
+                                    if (food <= 18.99_rk) then
+                                        if (parmeanlog > -13.83_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -8.17_rk) then
+                                        if (parmeanlog > -16.12_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -772,37 +1190,53 @@ contains
                                     end if
                                 end if
                             else
-                                if (parmeanlog > -10.67_rk) then
-                                    upper_presence = 1.0_rk
+                                if (par0log <= 0.02_rk) then
+                                    if (parmeanlog > -3.33_rk) then
+                                        upper_presence = 1.0_rk
+                                    else
+                                        upper_presence = 0.0_rk
+                                    end if
                                 else
-                                    upper_presence = 0.0_rk
+                                    if (nhours <= 7.40_rk) then
+                                        if (parmeanlog > -7.20_rk) then
+                                            upper_presence = 1.0_rk
+                                        else
+                                            upper_presence = 0.0_rk
+                                        end if
+                                    else
+                                        if (parmeanlog > -8.47_rk) then
+                                            upper_presence = 1.0_rk
+                                        else
+                                            upper_presence = 0.0_rk
+                                        end if
+                                    end if
                                 end if
                             end if
                         else
-                            if (par0log <= 1.40_rk) then
-                                if (food <= 19.06_rk) then
-                                    if (food <= 17.71_rk) then
-                                        if (parmeanlog > -15.04_rk) then
+                            if (par0log <= 1.12_rk) then
+                                if (food <= 18.53_rk) then
+                                    if (nhours <= 12.18_rk) then
+                                        if (parmeanlog > -8.02_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -11.98_rk) then
+                                        if (parmeanlog > -13.83_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (parmean0log <= 0.63_rk) then
-                                        if (parmeanlog > -18.30_rk) then
+                                    if (food <= 35.23_rk) then
+                                        if (parmeanlog > -18.35_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -15.77_rk) then
+                                        if (parmeanlog > -15.13_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -810,29 +1244,29 @@ contains
                                     end if
                                 end if
                             else
-                                if (par0log <= 1.54_rk) then
-                                    if (nhours <= 15.38_rk) then
-                                        if (parmeanlog > -10.34_rk) then
+                                if (nhours <= 18.82_rk) then
+                                    if (par0log <= 1.51_rk) then
+                                        if (parmeanlog > -12.01_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -13.08_rk) then
+                                        if (parmeanlog > -6.31_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (parmean0log <= 1.01_rk) then
-                                        if (parmeanlog > -10.97_rk) then
+                                    if (food <= 35.24_rk) then
+                                        if (parmeanlog > -18.87_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -9.51_rk) then
+                                        if (parmeanlog > -13.54_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -841,25 +1275,135 @@ contains
                                 end if
                             end if
                         end if
-                        
-                        ! Upperlight Rules
-                        if (food <= 17.24_rk) then
-                            if (food <= 17.24_rk) then
-                                if (nhours <= 8.01_rk) then
-                                    if (parlog < -0.01_rk) then
-                                        lower_presence = 1.0_rk
-                                    else
-                                        lower_presence = 0.0_rk
-                                    end if
-                                else
-                                    if (food <= 17.23_rk) then
-                                        if (parlog < -2.12_rk) then
+
+                        ! ! Upperlight Rules
+                        ! if (food <= 17.24_rk) then
+                        !     if (food <= 17.24_rk) then
+                        !         if (nhours <= 8.01_rk) then
+                        !             if (parlog < -0.01_rk) then
+                        !                 lower_presence = 1.0_rk
+                        !             else
+                        !                 lower_presence = 0.0_rk
+                        !             end if
+                        !         else
+                        !             if (food <= 17.23_rk) then
+                        !                 if (parlog < -2.12_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parlog < -0.97_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     else
+                        !         if (par0log <= 0.50_rk) then
+                        !             if (parlog < -4.27_rk) then
+                        !                 lower_presence = 1.0_rk
+                        !             else
+                        !                 lower_presence = 0.0_rk
+                        !             end if
+                        !         else
+                        !             if (parlog < -3.90_rk) then
+                        !                 lower_presence = 1.0_rk
+                        !             else
+                        !                 lower_presence = 0.0_rk
+                        !             end if
+                        !         end if
+                        !     end if
+                        ! else
+                        !     if (nhours <= 19.72_rk) then
+                        !         if (par0log <= 1.48_rk) then
+                        !             if (food <= 19.11_rk) then
+                        !                 if (parlog < -5.52_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parlog < -7.50_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (par0log <= 1.65_rk) then
+                        !                 if (parlog < -3.66_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parlog < -7.29_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     else
+                        !         if (food <= 20.00_rk) then
+                        !             if (par0log <= 0.33_rk) then
+                        !                 if (parlog < -9.54_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parlog < -7.53_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (par0log <= 1.08_rk) then
+                        !                 if (parlog < -10.61_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parlog < -8.58_rk) then
+                        !                     lower_presence = 1.0_rk
+                        !                 else
+                        !                     lower_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     end if
+                        ! end if
+! Updated Upperlight Rules
+                        if (nhours <= 9.61_rk) then
+                            if (food <= 34.54_rk) then
+                                if (food <= 18.08_rk) then
+                                    if (par0log <= 0.19_rk) then
+                                        if (parlog < -3.79_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parlog < -0.97_rk) then
+                                        if (parlog < 0.23_rk) then
+                                            lower_presence = 1.0_rk
+                                        else
+                                            lower_presence = 0.0_rk
+                                        end if
+                                    end if
+                                else
+                                    if (par0log <= 0.18_rk) then
+                                        if (parlog < -5.81_rk) then
+                                            lower_presence = 1.0_rk
+                                        else
+                                            lower_presence = 0.0_rk
+                                        end if
+                                    else
+                                        if (parlog < -7.89_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
@@ -867,45 +1411,61 @@ contains
                                     end if
                                 end if
                             else
-                                if (par0log <= 0.50_rk) then
-                                    if (parlog < -4.27_rk) then
-                                        lower_presence = 1.0_rk
+                                if (nhours <= 7.40_rk) then
+                                    if (par0log <= 0.71_rk) then
+                                        if (parlog < -0.18_rk) then
+                                            lower_presence = 1.0_rk
+                                        else
+                                            lower_presence = 0.0_rk
+                                        end if
                                     else
-                                        lower_presence = 0.0_rk
+                                        if (parlog < 0.77_rk) then
+                                            lower_presence = 1.0_rk
+                                        else
+                                            lower_presence = 0.0_rk
+                                        end if
                                     end if
                                 else
-                                    if (parlog < -3.90_rk) then
-                                        lower_presence = 1.0_rk
+                                    if (par0log <= 0.81_rk) then
+                                        if (parlog < -3.72_rk) then
+                                            lower_presence = 1.0_rk
+                                        else
+                                            lower_presence = 0.0_rk
+                                        end if
                                     else
-                                        lower_presence = 0.0_rk
+                                        if (parlog < 0.04_rk) then
+                                            lower_presence = 1.0_rk
+                                        else
+                                            lower_presence = 0.0_rk
+                                        end if
                                     end if
                                 end if
                             end if
                         else
-                            if (nhours <= 19.72_rk) then
-                                if (par0log <= 1.48_rk) then
-                                    if (food <= 19.11_rk) then
-                                        if (parlog < -5.52_rk) then
+                            if (par0log <= 1.39_rk) then
+                                if (food <= 17.37_rk) then
+                                    if (food <= 17.17_rk) then
+                                        if (parlog < 0.38_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parlog < -7.50_rk) then
+                                        if (parlog < -4.73_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (par0log <= 1.65_rk) then
-                                        if (parlog < -3.66_rk) then
+                                    if (par0log <= 1.15_rk) then
+                                        if (parlog < -7.89_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parlog < -7.29_rk) then
+                                        if (parlog < -6.23_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
@@ -913,29 +1473,29 @@ contains
                                     end if
                                 end if
                             else
-                                if (food <= 20.00_rk) then
-                                    if (par0log <= 0.33_rk) then
-                                        if (parlog < -9.54_rk) then
+                                if (parmean0log <= 0.98_rk) then
+                                    if (par0log <= 1.52_rk) then
+                                        if (parlog < -4.44_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parlog < -7.53_rk) then
+                                        if (parlog < -0.68_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (par0log <= 1.08_rk) then
-                                        if (parlog < -10.61_rk) then
+                                    if (par0log <= 1.69_rk) then
+                                        if (parlog < -5.42_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parlog < -8.58_rk) then
+                                        if (parlog < -3.01_rk) then
                                             lower_presence = 1.0_rk
                                         else
                                             lower_presence = 0.0_rk
@@ -943,8 +1503,7 @@ contains
                                     end if
                                 end if
                             end if
-                        end if
-                        
+                        end if                        
                         
                         ! Set diagnostic based on presence
                         if (upper_presence + lower_presence > 1.0_rk) then
@@ -964,31 +1523,148 @@ contains
                         lower_presence = 0.0_rk
                         
                         ! Calculate possibilities above the lower boundary
-                        if (food <= 17.23_rk) then
-                            if (par0log <= -0.81_rk) then
-                                if (par0log <= -2.22_rk) then
-                                    if (par0log <= -11.80_rk) then
-                                        if (parmeanlog > -9.70_rk) then
+                        ! if (food <= 17.23_rk) then
+                        !     if (par0log <= -0.81_rk) then
+                        !         if (par0log <= -2.22_rk) then
+                        !             if (par0log <= -11.80_rk) then
+                        !                 if (parmeanlog > -9.70_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -15.28_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (food <= 17.14_rk) then
+                        !                 if (parmeanlog > -10.82_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -13.03_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     else
+                        !         if (food <= 17.15_rk) then
+                        !             if (parmeanlog > -7.96_rk) then
+                        !                 upper_presence = 1.0_rk
+                        !             else
+                        !                 upper_presence = 0.0_rk
+                        !             end if
+                        !         else
+                        !             if (par0log <= -0.09_rk) then
+                        !                 if (parmeanlog > -8.62_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -7.96_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     end if
+                        ! else
+                        !     if (food <= 19.11_rk) then
+                        !         if (food <= 19.00_rk) then
+                        !             if (food <= 17.34_rk) then
+                        !                 if (parmeanlog > -15.07_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -16.92_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (parmean0log <= -0.45_rk) then
+                        !                 if (parmeanlog > -12.86_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -16.92_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     else
+                        !         if (food <= 19.40_rk) then
+                        !             if (par0log <= -0.26_rk) then
+                        !                 if (parmeanlog > -17.97_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -18.71_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         else
+                        !             if (par0log <= -0.01_rk) then
+                        !                 if (parmeanlog > -19.64_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             else
+                        !                 if (parmeanlog > -20.17_rk) then
+                        !                     upper_presence = 1.0_rk
+                        !                 else
+                        !                     upper_presence = 0.0_rk
+                        !                 end if
+                        !             end if
+                        !         end if
+                        !     end if
+                        ! end if
+                        if (food <= 34.68_rk) then
+                            if (food <= 19.00_rk) then
+                                if (nhours <= 8.44_rk) then
+                                    if (food <= 17.13_rk) then
+                                        if (parmeanlog > -13.32_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -15.28_rk) then
+                                        if (parmeanlog > -10.80_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (food <= 17.14_rk) then
-                                        if (parmeanlog > -10.82_rk) then
+                                    if (par0log <= -2.43_rk) then
+                                        if (parmeanlog > -7.98_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -13.03_rk) then
+                                        if (parmeanlog > -14.02_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -996,21 +1672,29 @@ contains
                                     end if
                                 end if
                             else
-                                if (food <= 17.15_rk) then
-                                    if (parmeanlog > -7.96_rk) then
-                                        upper_presence = 1.0_rk
-                                    else
-                                        upper_presence = 0.0_rk
-                                    end if
-                                else
-                                    if (par0log <= -0.09_rk) then
-                                        if (parmeanlog > -8.62_rk) then
+                                if (par0log <= -1.55_rk) then
+                                    if (parmean0log <= -0.57_rk) then
+                                        if (parmeanlog > -13.65_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -7.96_rk) then
+                                        if (parmeanlog > -15.79_rk) then
+                                            upper_presence = 1.0_rk
+                                        else
+                                            upper_presence = 0.0_rk
+                                        end if
+                                    end if
+                                else
+                                    if (par0log <= -0.07_rk) then
+                                        if (parmeanlog > -17.67_rk) then
+                                            upper_presence = 1.0_rk
+                                        else
+                                            upper_presence = 0.0_rk
+                                        end if
+                                    else
+                                        if (parmeanlog > -19.24_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -1019,30 +1703,30 @@ contains
                                 end if
                             end if
                         else
-                            if (food <= 19.11_rk) then
-                                if (food <= 19.00_rk) then
-                                    if (food <= 17.34_rk) then
-                                        if (parmeanlog > -15.07_rk) then
+                            if (parmean0log <= -0.20_rk) then
+                                if (par0log <= -1.49_rk) then
+                                    if (par0log <= -10.94_rk) then
+                                        if (parmeanlog > -8.07_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -16.92_rk) then
+                                        if (parmeanlog > -8.96_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     end if
                                 else
-                                    if (parmean0log <= -0.45_rk) then
-                                        if (parmeanlog > -12.86_rk) then
+                                    if (par0log <= -1.23_rk) then
+                                        if (parmeanlog > -5.16_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -16.92_rk) then
+                                        if (parmeanlog > -7.12_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -1050,29 +1734,21 @@ contains
                                     end if
                                 end if
                             else
-                                if (food <= 19.40_rk) then
-                                    if (par0log <= -0.26_rk) then
-                                        if (parmeanlog > -17.97_rk) then
-                                            upper_presence = 1.0_rk
-                                        else
-                                            upper_presence = 0.0_rk
-                                        end if
+                                if (par0log <= -0.29_rk) then
+                                    if (parmeanlog > -7.03_rk) then
+                                        upper_presence = 1.0_rk
                                     else
-                                        if (parmeanlog > -18.71_rk) then
-                                            upper_presence = 1.0_rk
-                                        else
-                                            upper_presence = 0.0_rk
-                                        end if
+                                        upper_presence = 0.0_rk
                                     end if
                                 else
-                                    if (par0log <= -0.01_rk) then
-                                        if (parmeanlog > -19.64_rk) then
+                                    if (par0log <= -0.20_rk) then
+                                        if (parmeanlog > -13.05_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
                                         end if
                                     else
-                                        if (parmeanlog > -20.17_rk) then
+                                        if (parmeanlog > -11.38_rk) then
                                             upper_presence = 1.0_rk
                                         else
                                             upper_presence = 0.0_rk
@@ -1081,7 +1757,7 @@ contains
                                 end if
                             end if
                         end if
-                        
+
                         ! Set diagnostic based on presence
                         if (upper_presence + lower_presence > 0.9_rk) then
                             _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
