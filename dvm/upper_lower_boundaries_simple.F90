@@ -21,6 +21,13 @@ type, extends(type_base_model), public :: type_upper_lower_boundaries_simple
     type (type_diagnostic_variable_id)              :: id_present
     type (type_bottom_dependency_id)                :: id_topo
     type (type_horizontal_dependency_id)            :: id_daylength
+    type (type_state_variable_id)                   :: id_oxygen
+
+    real(rk) :: night_threshold
+    real(rk) :: oxygen_threshold
+    real(rk) :: upper_boundary
+    real(rk) :: lower_boundary
+    real(rk) :: lower_boundary_night
 
 !type (type_dependency_id)                       :: id_temp
     contains
@@ -50,8 +57,14 @@ contains
         call self%register_dependency(self%id_depth,standard_variables%pressure)
         call self%register_dependency(self%id_topo,standard_variables%bottom_depth )
         call self%register_dependency(self%id_daylength,'daylength','hours','number of hours light is available at the surface')
+        call self%register_state_dependency(self%id_oxygen, 'oxygen', 'mmol m-3', 'oxygen concentration')
 
-!        call self%register_diagnostic_variable(self%id_nhours_out,'nhours','-','number of daylight hours',source=source_do_surface)
+        call self%get_parameter(self%oxygen_threshold,'oxygen_threshold','mmol m-3','anoxic conditions where below migrator will not swim into',default=62.53_rk)
+        call self%get_parameter(self%night_threshold,'night_threshold','log10(W/m2)','light level where below is night to active swimming to surface',default=0.0_rk)
+        call self%get_parameter(self%upper_boundary,'upper_boundary','log10(W/m2)','light level of the upper boundary for high migrator concentration',default=-6.5_rk)
+        call self%get_parameter(self%lower_boundary,'lower_boundary','log10(W/m2)','light level of the daytime lower boundary for high migrator concentration',default=-15.0_rk)
+        call self%get_parameter(self%lower_boundary_night,'lower_boundary_night','log10(W/m2)','light level of the nighttime lower boundary for high migrator concentration',default=-15.0_rk)
+        !        call self%register_diagnostic_variable(self%id_nhours_out,'nhours','-','number of daylight hours',source=source_do_surface)
     end subroutine initialize
 
 !     subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
@@ -80,6 +93,7 @@ contains
         real(rk) :: depth
         real(rk) :: upper_presence, lower_presence
         real(rk) :: topo
+        real(rk) :: oxygen
 
         _LOOP_BEGIN_
 
@@ -88,6 +102,7 @@ contains
             _GET_SURFACE_(self%id_daylength,nhours)
             _GET_SURFACE_(self%id_migrator_food0,food)
             _GET_BOTTOM_(self%id_topo,topo)
+            _GET_(self%id_oxygen,oxygen)
 
             !nhours = min(24.0_rk, max(0.0_rk,nhours * 86400.0_rk))
             par0log = max(-20.0_rk, log10(par0))
@@ -132,7 +147,7 @@ contains
 !                end if
                 
                 ! Set diagnostic based on presence
-                if (upper_presence + lower_presence > 0.9_rk) then
+                if (upper_presence + lower_presence > 0.9_rk .and. oxygen >= self%oxygen_threshold) then
                     _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
                 else
                     _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
@@ -823,7 +838,7 @@ contains
                     if (upper_presence + lower_presence > 1.0_rk) then
                         _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
                     else
-                        if (upper_presence > 0.9_rk .and. depth >= max(topo - 20.0_rk, 0.0_rk) ) then 
+                        if (upper_presence > 0.9_rk .and. depth >= max(topo - 20.0_rk, 0.0_rk) .and. oxygen >= self%oxygen_threshold) then 
                             _SET_DIAGNOSTIC_(self%id_present,1.0_rk)
                         else 
                             _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
@@ -832,7 +847,7 @@ contains
                 else
 
                     ! CASE 3
-                    if (par0log > 0.0_rk) then
+                    if (par0log > self%night_threshold) then
                         ! there is an upper and a lower light boundary
                         ! first calculate possibilities above the lower boundary
                         
@@ -841,14 +856,14 @@ contains
                         lower_presence = 0.0_rk
                         
                         ! Lowerlight Rules
-                        if (parmeanlog > -15.0_rk) then
+                        if (parmeanlog > self%lower_boundary) then
                             upper_presence = 1.0_rk
                         else
                             upper_presence = 0.0_rk
                         end if
                         
                         ! Upperlight Rules
-                        if (parlog < -6.5_rk) then
+                        if (parlog < self%upper_boundary) then
                             lower_presence = 1.0_rk
                         else
                             lower_presence = 0.0_rk
@@ -859,7 +874,7 @@ contains
                         if (upper_presence + lower_presence > 1.0_rk) then
                             _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
                         else
-                            if (upper_presence > 0.9_rk .and. depth >= max(topo - 20.0_rk, 0.0_rk) ) then 
+                            if (upper_presence > 0.9_rk .and. depth >= max(topo - 20.0_rk, 0.0_rk) .and. oxygen >= self%oxygen_threshold) then 
                                 _SET_DIAGNOSTIC_(self%id_present,1.0_rk)
                             else 
                                 _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
@@ -873,14 +888,14 @@ contains
                         lower_presence = 0.0_rk
                         
                         ! Calculate possibilities above the lower boundary
-                        if (parmeanlog > -15.0_rk) then
+                        if (parmeanlog > self%lower_boundary_night) then
                             upper_presence = 1.0_rk
                         else
                             upper_presence = 0.0_rk
                         end if
                         
                         ! Set diagnostic based on presence
-                        if (upper_presence + lower_presence > 0.9_rk) then
+                        if (upper_presence + lower_presence > 0.9_rk .and. oxygen >= self%oxygen_threshold) then
                             _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
                         else
                             _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
