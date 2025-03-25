@@ -10,7 +10,6 @@ add_library(fabm_models_nersc OBJECT
             dvm/upper_lower_boundaries_complex.F90
             dvm/weight_distribution.F90
             dvm/move.F90
-            dvm/apply_move.F90
            )
 
 add_dependencies(fabm_models_nersc fabm_base)
