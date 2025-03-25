@@ -22,9 +22,7 @@ contains
       use fabm_nersc_ecosmo_gmd_2023_25
       use dvm_conservative_migrator
       use dvm_get_dependencies
-      use dvm_upper_lower_boundaries
       use dvm_upper_lower_boundaries_simple
-      use dvm_upper_lower_boundaries_complex
       use dvm_weight_distribution
       use dvm_move
       ! Add new models here
