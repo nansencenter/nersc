@@ -13,7 +13,7 @@ type, extends(type_base_model), public :: type_upper_lower_boundaries_simple
 
     type (type_dependency_id)                       :: id_par, id_parmean, id_migrator_food, id_depth 
     type (type_horizontal_dependency_id)            :: id_parmean0 
-    type (type_horizontal_dependency_id)            :: id_migrator_food0 
+!    type (type_horizontal_dependency_id)            :: id_migrator_food0 
     type (type_surface_dependency_id)               :: id_par0
     type (type_diagnostic_variable_id)              :: id_present
     type (type_bottom_dependency_id)                :: id_topo
@@ -44,9 +44,11 @@ contains
         call self%register_dependency(self%id_parmean0,temporal_mean(self%id_par0,period=86400._rk,resolution=3600._rk,missing_value=50.0_rk))
         call self%register_dependency(self%id_parmean,temporal_mean(self%id_par,period=86400._rk,resolution=3600._rk,missing_value=1.0_rk))
         call self%register_dependency(self%id_migrator_food,'migrator_food','mgC/m3','food availability for the migrators')
-        call self%register_dependency(self%id_migrator_food0,vertical_integral(self%id_migrator_food))
-        call self%register_dependency(self%id_depth,standard_variables%pressure)
-        call self%register_dependency(self%id_topo,standard_variables%bottom_depth )
+        !call self%register_dependency(self%id_migrator_food0,vertical_integral(self%id_migrator_food))
+!        call self%register_dependency(self%id_depth,standard_variables%pressure)
+!        call self%register_dependency(self%id_topo,standard_variables%bottom_depth )
+        call self%register_dependency(self%id_depth,standard_variables%depth)
+        call self%register_dependency(self%id_topo,standard_variables%bottom_depth_below_geoid )
         call self%register_dependency(self%id_daylength,'daylength','hours','number of hours light is available at the surface')
         call self%register_state_dependency(self%id_oxygen, 'oxygen', 'mmol m-3', 'oxygen concentration')
 
@@ -74,7 +76,7 @@ contains
             _GET_SURFACE_(self%id_parmean0,parmean0)
             _GET_SURFACE_(self%id_par0,par0)
             _GET_SURFACE_(self%id_daylength,nhours)
-            _GET_SURFACE_(self%id_migrator_food0,food)
+            !_GET_SURFACE_(self%id_migrator_food0,food)
             _GET_BOTTOM_(self%id_topo,topo)
             _GET_(self%id_oxygen,oxygen)
 
