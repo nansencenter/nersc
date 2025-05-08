@@ -21,7 +21,8 @@ type, extends(type_base_model), public :: type_weight_distribution
     type (type_dependency_id)                 :: id_thickness
     type (type_surface_dependency_id)         :: id_par0 !, id_parmean0
     type (type_bottom_dependency_id)          :: id_topo
-    type (type_dependency_id)                 :: id_depth    
+    type (type_dependency_id)                 :: id_depth
+    real(rk) :: ratioMig
 
     contains
         procedure :: initialize
@@ -52,6 +53,7 @@ contains
         call self%register_dependency(self%id_depth,standard_variables%depth)
         !call self%register_dependency(self%id_topo,standard_variables%bottom_depth )
         call self%register_dependency(self%id_topo,standard_variables%bottom_depth_below_geoid )
+        call self%get_parameter( self%ratioMig,  'ratioMig',    '-',      'ratio of moving biomass', default=0.5_rk)
 
         call random_seed()
     end subroutine initialize
@@ -67,6 +69,7 @@ contains
         real(rk) :: counter
         real(rk) :: totalthk
         real(rk) :: search_food
+        real(rk) :: final_random
 
         integral = 0.0_rk
         integral_random = 0.0_rk
@@ -98,21 +101,24 @@ contains
                 search_food = 1.0_rk ! food has no effect
             end if
 
+            final_random = thickness * (minimum_value + (1.0_rk - minimum_value) * local_random * food * (1.0_rk - self%ratioMig) )
+
+
             thickness = max(thickness, 1.0E-20_rk)
             if (present > 0.5_rk) then
-                 local_random = thickness * (minimum_value + (1.0_rk - minimum_value) * local_random * search_food ) 
+                 final_random = thickness * (minimum_value + (1.0_rk - minimum_value) * local_random * search_food * self%ratioMig) + final_random
             else
                 if (depth <= min(depth_threshold,topo)) then
-                     local_random = thickness * (minimum_value + (0.2_rk - minimum_value) * local_random * search_food )  
+                     final_random = thickness * (minimum_value + (0.2_rk - minimum_value) * local_random * search_food * self%ratioMig) + final_random  
                 else
-                     local_random = thickness * (minimum_value + (0.2_rk - minimum_value) &
-                         * exp(-0.025_rk * (depth - min(depth_threshold, topo))) * local_random * search_food ) 
+                     final_random = thickness * (minimum_value + (0.2_rk - minimum_value) &
+                         * exp(-0.025_rk * (depth - min(depth_threshold, topo))) * local_random * search_food * self%ratioMig) + final_random 
                 end if 
             end if
 
-            integral_random = integral_random + local_random
+            integral_random = integral_random + final_random
 
-            _SET_DIAGNOSTIC_(self%id_random_weights,local_random)
+            _SET_DIAGNOSTIC_(self%id_random_weights,final_random)
 
         _VERTICAL_LOOP_END_
         _SET_BOTTOM_DIAGNOSTIC_(self%id_integral,integral)
