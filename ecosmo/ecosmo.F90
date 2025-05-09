@@ -310,11 +310,11 @@
    ! You can modify these using fabm.yaml file
    ! Suggestions from NECCTON partners:
    ! exulim = 0.3_rk
-   ! qexct = 0.05_rk
+   ! qexcr = 0.05_rk
    ! KsLightDep = 0.001_rk
    call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.0_rk)
    call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.0_rk)
-   call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=0.0_rk)
+   call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
    ! Register state variables
    call self%register_state_variable( self%id_no3,      'no3',     'mgC/m3',    'nitrate',                   minimum=0.0_rk,        vertical_movement=0.0_rk,  &
                                       initial_value=5.0_rk*redf(1)*redf(6)  )
@@ -821,7 +821,11 @@ end subroutine initialize
    end if
 
    ! light dependent mortality multiplier
-   light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreases
+   if (self%KsLightDep < 1.0e-18_rk) then 
+      light_dep_mort = 1.0_rk ! mesozooplankton mortality is not dependent on light
+   else
+      light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreases
+   end if
 
 ! reaction rates
    highMortPs = self%m2Ps * ( fla/(fla + self%Km2Ps) )  
