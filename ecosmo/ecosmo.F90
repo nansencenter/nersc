@@ -306,9 +306,15 @@
    call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)
    call self%get_parameter( self%use_coccolithophores,     'use_coccolithophores', '', 'switch coccolithophores', default=.false.)
    ! 2025 additions from EU NECCTON project WP5
-   call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.3_rk)
-   call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.05_rk)
-   call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=0.001_rk)
+   ! Default values for the NECCTON additions are set to 0.0 in order to be compatible with other projects.
+   ! You can modify these using fabm.yaml file
+   ! Suggestions from NECCTON partners:
+   ! exulim = 0.3_rk
+   ! qexct = 0.05_rk
+   ! KsLightDep = 0.001_rk
+   call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.0_rk)
+   call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.0_rk)
+   call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=0.0_rk)
    ! Register state variables
    call self%register_state_variable( self%id_no3,      'no3',     'mgC/m3',    'nitrate',                   minimum=0.0_rk,        vertical_movement=0.0_rk,  &
                                       initial_value=5.0_rk*redf(1)*redf(6)  )
