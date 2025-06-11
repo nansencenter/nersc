@@ -58,6 +58,8 @@
       !
       type (type_dependency_id)             :: id_thickness
       !type (type_global_dependency_id)             :: id_time_step
+      type (type_horizontal_dependency_id) :: id_lat
+      type (type_global_dependency_id)     :: id_yearday
 
 !     Model parameters
       real(rk) :: BioC(45)
@@ -452,7 +454,8 @@
         call self%register_dependency(self%id_Om_cal,'Om_cal_target','-','calcite saturation')
      endif
    end if
-
+   call self%register_dependency(self%id_lat,standard_variables%latitude)
+   call self%register_dependency(self%id_yearday,standard_variables%number_of_days_since_start_of_the_year)
 
 !   call self%register_dependency(self%id_h,       'icethickness', 'm',    'ice thickness')
 !   call self%register_dependency(self%id_hs,      'snowthickness','m',    'snow thickness')
@@ -515,6 +518,11 @@ end subroutine initialize
    real(rk) :: exu_dia, exu_fla, exu_cocco, exu_bg
    real(rk) :: rhs_dom
    ! ---------------------------------------------------
+   real(rk) :: latitude, yearday, declination, day_length
+   real, parameter :: pi = 3.14159265358979323846
+   real(rk) :: inside_acos
+   real(rk) :: scale_Rg
+
 
 ! local variables for cyanobacteria
    real(rk) :: bg, bgchl, chl2c_bg
@@ -591,6 +599,17 @@ end subroutine initialize
    _GET_(self%id_parmean,mean_par)
    _GET_HORIZONTAL_(self%id_meansfpar,mean_surface_par)
    _GET_HORIZONTAL_(self%id_tbs,tbs)
+
+   _GET_SURFACE_(self%id_lat,latitude) ! degN
+   _GET_GLOBAL_(self%id_yearday,yearday) !decimal day of the year
+
+   latitude = latitude * pi / 180.0
+   declination = 23.44 * pi / 180.0 * sin(2.0 * pi / 365.0 * (yearday - 81.0))
+   inside_acos = max( -1.0_rk, min( 1.0_rk,-tan(latitude) * tan(declination) ) )
+
+   day_length = 24.0 / pi * acos(inside_acos)
+   day_length = max(0.0_rk, min(24.0_rk, day_length))
+   scale_Rg = max( 0.4_rk , min(1.0_rk,(24.0_rk - day_length)/24.0_rk) )
 
    ! CAGLAR
    ! checks - whether the biomass of plankton is below a predefined threshold,
@@ -771,17 +790,17 @@ end subroutine initialize
    ZsonPl = dia_loss * self%BioC(12) * self%prefZsPl * dia**2/(self%BioC(14)**2 + Fs**2)
    ZsonD  =            self%BioC(12) * self%prefZsD * det**2/(self%BioC(14)**2 + Fs**2)
 
-   ZlonPs = fla_loss * self%BioC(11) * self%prefZlPs * fla**2/(self%RgZl**2 + Fl**2)
-   ZlonPl = dia_loss * self%BioC(11) * self%prefZlPl * dia**2/(self%RgZl**2 + Fl**2)
-   ZlonD =             self%BioC(11) * self%prefZlD * det**2/(self%RgZl**2 + Fl**2)
-   ZlonZs = mic_loss * self%BioC(13) * self%prefZlZs * microzoo**2/(self%RgZl**2 + Fl**2)
+   ZlonPs = fla_loss * self%BioC(11) * self%prefZlPs * fla**2/((self%RgZl*scale_Rg)**2 + Fl**2)
+   ZlonPl = dia_loss * self%BioC(11) * self%prefZlPl * dia**2/((self%RgZl*scale_Rg)**2 + Fl**2)
+   ZlonD =             self%BioC(11) * self%prefZlD * det**2/((self%RgZl*scale_Rg)**2 + Fl**2)
+   ZlonZs = mic_loss * self%BioC(13) * self%prefZlZs * microzoo**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    ! EXPERIMENT
 
    if (self%use_cyanos) then
      !ZsonBg = bg_loss  * self%BioC(31) * self%prefZsBG * bg/(self%BioC(14) + Fs)
      !ZlonBg = bg_loss  * self%BioC(31) * self%prefZlBG * bg/(self%BioC(14) + Fl)
      ZsonBg = bg_loss  * self%BioC(31) * self%prefZsBG * bg**2/(self%BioC(14)**2 + Fs**2)
-     ZlonBg = bg_loss  * self%BioC(31) * self%prefZlBG * bg**2/(self%RgZl**2 + Fl**2)
+     ZlonBg = bg_loss  * self%BioC(31) * self%prefZlBG * bg**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    else
      ZsonBg=0.0_rk
      ZlonBg=0.0_rk
@@ -791,7 +810,7 @@ end subroutine initialize
     !ZsonCocco = cocco_loss  * self%GrZsCocco * self%prefZsCocco * cocco/(self%BioC(14) + Fs)
     !ZlonCocco = cocco_loss  * self%GrZlCocco * self%prefZlCocco * cocco/(self%BioC(14) + Fl)
     ZsonCocco = cocco_loss  * self%GrZsCocco * self%prefZsCocco * cocco**2/(self%BioC(14)**2 + Fs**2)
-    ZlonCocco = cocco_loss  * self%GrZlCocco * self%prefZlCocco * cocco**2/(self%RgZl**2 + Fl**2)
+    ZlonCocco = cocco_loss  * self%GrZlCocco * self%prefZlCocco * cocco**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    else
     ZsonCocco=0.0_rk
     ZlonCocco=0.0_rk
