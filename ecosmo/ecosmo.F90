@@ -91,6 +91,7 @@
       ! 
       ! 2025 additions from EU NECCTON project WP5
       real(rk) :: exulim, qexcr, KsLightDep
+      real(rk) :: scaleRg
 
       ! community dependent sinking parameters
       real(rk) :: sinkDiaD,sinkFlaD,sinkMicD,sinkMesD,sinkBgD, sinkCoccoD
@@ -317,6 +318,8 @@
    call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.0_rk)
    call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.0_rk)
    call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
+   call self%get_parameter( self%scaleRg,  'scaleRg',   'the minimum value for RgZl scaling for faster grazing while DVM active',  default=1.0_rk) ! default is off (full RgZl) ! remember that smaller Rg means faster feeding 
+
    ! Register state variables
    call self%register_state_variable( self%id_no3,      'no3',     'mgC/m3',    'nitrate',                   minimum=0.0_rk,        vertical_movement=0.0_rk,  &
                                       initial_value=5.0_rk*redf(1)*redf(6)  )
@@ -523,7 +526,6 @@ end subroutine initialize
    real(rk) :: inside_acos
    real(rk) :: scale_Rg
 
-
 ! local variables for cyanobacteria
    real(rk) :: bg, bgchl, chl2c_bg
    real(rk) :: Bg_fix
@@ -609,7 +611,7 @@ end subroutine initialize
 
    day_length = 24.0 / pi * acos(inside_acos)
    day_length = max(0.0_rk, min(24.0_rk, day_length))
-   scale_Rg = max( 0.4_rk , min(1.0_rk,(24.0_rk - day_length)/24.0_rk) )
+   scale_Rg = max( self%scaleRg , min(1.0_rk,(24.0_rk - day_length)/24.0_rk) )
 
    ! CAGLAR
    ! checks - whether the biomass of plankton is below a predefined threshold,
