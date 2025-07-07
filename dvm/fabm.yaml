@@ -1,0 +1,223 @@
+instances:
+  light:
+    model: gotm/light
+    parameters:
+      A: 0.58
+      g1: 0.35
+      g2: 23.0
+  CO2:
+    initialization:
+      TA: 2300.0
+      c: 2200.0   # total dissolved inorganic carbon (mmol m-3)
+    model: ersem/carbonate
+  ECO:
+    coupling:
+      Om_cal_target: CO2_Om_cal
+      alk_target: CO2_TA
+      dic_target: CO2_c
+    initialization:
+      no3: 1200.0        # nitrate (mgC/m**3)
+      nh4: 8.0           # ammonium (mgC/m**3)
+      pho: 1200.0        # phosphate (mgC/m**3)
+      sil: 1000.0        # silicate (mgC/m**3)
+      oxy: 300.0         # oxygen (mmolO2/m**3)
+      dia: 0.1           # diatom (large phytoplankton) (Pl) (mgC/m**3)
+      fla: 0.1           # flagellate (small phytoplankton) (Ps) (mgC/m**3)
+      ccl: 0.1           # coccolithophore (mgC/m**3)
+      diachl: 0.005      # diatom chlorophyll-a (mgChl/m**3)
+      flachl: 0.005      # flagellate chlorophyll-a (mgChl/m**3)
+      cclchl: 0.005      # coccolithophore chlorophyll-a (mgChl/m**3)
+      microzoo: 0.01     # microzooplankton (Zs) (mgC/m**3)
+      mesozoo: 0.01      # mesozooplankton (Zl) (mgC/m**3)
+      det: 0.1           # detritus (mgC/m**3)
+      dsnk: 5.78703e-06  # variable that handles variable detritus sinking speed (det*sink) (mgC/m**2/s) 
+      dom: 3.0           # labile dissolved organic matter (mgC/m**3)
+      opa: 0.1           # opal (mgC/m**3)
+      sed1: 113.6        # sediment detritus   (mgC/m2) (20mgN in C units)
+      sed2: 56.65        # sediment silicate   (mgC/m2) (20mgSi in C units)
+      sed3: 82.2         # sediment phosphorus (mgC/m2) (20mgP in C units)
+    model: nersc/ecosmo
+    parameters:
+
+      # switches 
+      turn_on_additional_diagnostics: true
+      use_chl: true
+      use_chl_in_PI_curve: true
+      use_coccolithophores: true
+      use_community_sinking: true
+      use_cyanos: false
+      couple_co2: true
+
+      # phyto growth rates
+      muPl: 0.62    # max growth rate for Pl        (1/d)
+      muPs: 0.43    # max growth rate for Ps        (1/d)
+      muCocco: 0.4  # max growth rate for ccl       (1/d)
+
+      # zooplankton grazing and feeding rates
+      GrZlCocco: 0.99  # Grazing rate Zl on Coccoliths   (1/d) 
+      GrZlP: 0.92      # Grazing rate Zl on Phyto        (1/d)
+      GrZlZ: 0.559     # Grazing rate Zl on Zs           (1/d)
+      GrZsCocco: 1.01  # Grazing rate Zs on Coccoliths   (1/d)
+      GrZsP: 1.05      # Grazing rate Zs on Phyto        (1/d)
+
+      # zooplankton feeding preferences and efficiencies
+      gammaZd: 0.3        # Zl and Zs assimilation efficiency on detritus    (-)
+      gammaZlp: 0.75      # Zl assimilation efficiency on phytoplankton      (-)
+      gammaZsp: 0.75      # Zs assimilation efficiency on phytoplankton      (-)
+      prefZlCocco: 0.19   # Grazing preference Zl on coccoliths              (-)
+      prefZlD: 0.07       # Grazing preference Zl on detritus                (-)
+      prefZlPl: 0.54      # Grazing preference Zl on Pl                      (-)
+      prefZlPs: 0.07      # Grazing preference Zl on Ps                      (-)
+      prefZlZs: 0.11      # Grazing preference Zl on Zs                      (-)
+      prefZsCocco: 0.1    # Grazing preference Zs on coccoliths              (-)
+      prefZsD: 0.06       # Grazing preference Zs on detritus                (-)
+      prefZsPl: 0.2       # Grazing preference Zs on Pl                      (-)
+      prefZsPs: 0.65      # Grazing preference Zs on Ps                      (-)
+
+      # half saturation constants
+      RgZl: 0.427        # Zl half saturation for grazing                                        (mmolN/m**3) 
+      RgZs: 0.552        # Zs half saturation for grazing                                        (mmolN/m**3)
+      rNH4: 0.2          # half saturation constant for NH4 uptake by diatoms and flagellates    (mmolN/m**3)
+      rNH4cocco: 0.2     # half saturation constant for NH4 uptake by coccoliths                 (mmolN/m**3)
+      rNO3: 0.5          # half saturation constant for NO3 uptake by diatoms and flagellates    (mmolN/m**3)
+      rNO3cocco: 1.0     # half saturation constant for NO3 uptake by coccoliths                 (mmolN/m**3)
+      rPO4: 0.05         # half saturation constant for PO4 uptake by diatoms and flagellates    (mmolP/m**3)
+      rPO4cocco: 0.0015  # half saturation constant for PO4 uptake by coccoliths                 (mmolP/m**3)
+      rSi: 0.5           # half saturation constant for PO4 uptake by diatoms                    (mmolSi/m**3)
+
+      # mortality terms
+      mPl: 0.0411         # Pl mortality rate                                           (1/d)
+      mPs: 0.0411         # Ps mortality rate                                           (1/d)
+      mZl: 0.0388         # Zl mortality rate                                           (1/d)
+      mZs: 0.0388         # Zs mortality rate                                           (1/d)
+      mortCocco: 0.0411   # Coccolith mortality rate                                    (1/d)
+      m2Pl: 0.285         # high mortality rate on excess biomass for Pl                (1/d)
+      m2Ps: 0.285         # high mortality rate on excess biomass for Ps                (1/d)
+      m2Zl: 0.085         # high mortality rate on excess biomass for Zl                (1/d)
+      m2Zs: 0.085         # high mortality rate on excess biomass for Zs                (1/d)
+      mort2Cocco: 0.285   # high mortality rate on excess biomass for Coccoliths        (1/d)
+      Km2Pl: 285.18       # half saturation biomass for high mortality rate Pl          (mgC/m3)
+      Km2Ps: 285.18       # half saturation biomass for high mortality rate Ps          (mgC/m3)
+      Km2Zl: 285.18       # half saturation biomass for high mortality rate Zl          (mgC/m3)
+      Km2Zs: 285.18       # half saturation biomass for high mortality rate Zs          (mgC/m3)
+      Km2Cocco: 285.18    # half saturation biomass for high mortality rate Coccoliths  (mgC/m3)
+
+      # chlorophyll parameters
+      MAXchl2nCocco: 3.08   # maximum Chl to N ratio Coccoliths      (mgChl/mmolN)
+      MAXchl2nPl: 2.95      # maximum Chl to N ratio Pl              (mgChl/mmolN)
+      MAXchl2nPs: 3.39      # maximum Chl to N ratio Ps              (mgChl/mmolN)
+      MINchl2nCocco: 0.265  # minimum Chl to N ratio Coccoliths      (mgChl/mmolN)
+      MINchl2nPl: 0.265     # minimum Chl to N ratio Pl              (mgChl/mmolN)
+      MINchl2nPs: 0.265     # minimum Chl to N ratio Ps              (mgChl/mmolN)
+      alfaCocco: 0.0259     # initial slope P-I curve coccoliths     (mmolN m2/(mgChl day W)**-1)
+      alfaPl: 0.0595        # initial slope P-I curve Pl             (mmolN m2/(mgChl day W)**-1)
+      alfaPs: 0.0369        # initial slope P-I curve Ps             (mmolN m2/(mgChl day W)**-1)
+
+      # biological light attenuation constants
+      EXdet: 0.0    # det self-shading                (m**2/molC)    
+      EXdom: 0.0    # dom self-shading                (m**2/molC)
+      EXphy: 0.0339 # phyto self-shading              (m**2/mgCHL)
+
+      # organic matter sinking
+      sinkDia: 0.0          # Diatom sinking rate         (m/d)    
+      sinkCocco: 1.5        # Coccoliths sinking rate     (m/d)
+      # takes effect if use_community_sinking: false
+      sinkDet: 5.0          # Detritus sinking rate       (m/d)
+      sinkOPAL: 5.0         # opal sinking rate           (m/d)
+      # takes effect if use_community_sinking: true
+      sinkDiaD: 5.59        # Detritus sinking rate, origin Pl             (m/d)
+      sinkFlaD: 0.468       # Detritus sinking rate, origin Ps             (m/d)
+      sinkMesD: 7.96        # Detritus sinking rate, origin Zl             (m/d)
+      sinkMicD: 0.987       # Detritus sinking rate, origin Zs             (m/d)
+      sinkCoccoD: 5.73      # Detritus sinking rate, origin coccoliths     (m/d)
+
+      # recycling, nutrients related parameters
+      excZl: 0.078          # Zl excretion rate                                       (1/d)
+      excZs: 0.078          # Zs excretion rate                                       (1/d)
+      frr: 0.4              # fraction of dissolved matter from detritus source terms (-)
+      TctrlDenit: 0.15      # temp. control denitrification                           (1/degC)
+      psi: 3.0              # NH4 inhibition                                          (m**3/mmolN)
+      regenSi: 0.015        # Si regeneration rate                                    (1/d)
+      reminD: 0.00315       # Detritus remineralization rate                          (1/d)
+
+      # sediment parameters
+      RelSEDp1: 0.15        # P sedim. rel. p1                (-)
+      RelSEDp2: 0.1         # P sedim. rel. p2                (-)
+      burialRt: 5.0e-05     # burial rate                     (1/d)
+      reminSED: 0.001       # sediment remineralization rate  (1/d)
+      reminSEDsi: 0.0002    # sed. remineralization rate Si   (1/d)
+      resuspRt: 25.0        # resuspension rate               (1/d)
+      sedimRt: 5.0          # sedimentation rate              (m/d)
+
+      # deposition
+      surface_deposition_nh4: 0.0
+      surface_deposition_no3: 0.0
+      surface_deposition_pho: 0.0
+      surface_deposition_sil: 0.0
+    
+      # parameters that are not in default use by NERSC, and will only matter if swithes are set accordingly
+      # if use_cyanos = true
+      MAXchl2nBG: 2.94    # maximum Chl to N ratio Cyanobacteria  (BG)     (mgChl/mmolN)
+      MINchl2nBG: 0.265   # minimum Chl to N ratio Cyanobacteria  (BG)     (mgChl/mmolN)
+      alfaBG: 0.0393      # initial slope P-I curve Cyanobacteria (BG)     (mmolN m2/(mgChl day W)**-1)
+      prefZlBG: 0.0       # Grazing preference Zl on Cyanobacteria         (-) 
+      prefZsBG: 0.0       # Grazing preference Zs on Cyanobacteria         (-)
+      bg_growth_minimum_daily_rad: 120.0
+      sinkBgD: 0.0        # Detritus sinking rate, origin Cyanobacteria    (m/d)
+      nfixation_minimum_daily_par: 35.0
+      # if use_chl_in_PI_curve = false
+      aa : 0.012          # photosynthesis ef-cy            (m**2/W) 
+
+      exulim: 0.3
+      qexcr: 0.05
+      KsLightDep: 0.001
+      scaleRg: 0.353
+
+  migrator:
+    long_name: migrating_zooplankton
+    model: nersc/dvm_conservative_migrator
+    initialization:
+      c: 1 # mgC/m3        
+
+  dg:
+    coupling:
+      prey1: ECO/dia
+      prey2: ECO/fla
+      prey3: ECO/microzoo
+      prey4: ECO/det
+      prey5: ECO/ccl
+    model: nersc/dvm_get_dependencies
+    parameters:
+      nprey: 5
+
+  db:
+    coupling:
+      daylength: dg/daylength
+      migrator_food: dg/migrator_food
+      oxygen: ECO/oxy
+    model: nersc/dvm_upper_lower_boundaries_simple
+    parameters:
+      lower_boundary: -15.0
+      night_threshold: 0.876
+      oxygen_threshold: 62.53
+      upper_boundary: -6.5
+
+  dw:
+    coupling:
+      migrator_food: dg/migrator_food
+      present: db/migrator_presence
+      target: ECO/mesozoo
+    model: nersc/dvm_weight_distribution
+    parameters:
+      ratioMig: 0.5
+
+#  dm:
+#    coupling:
+#      integral: dw/integral
+#      migrator_integral_random_weights: dw/migrator_integral_random_weights
+#      migrator_random_weights: dw/migrator_random_weights
+#      target: ECO/mesozoo
+#    long_name: distribute_migrators
+#    model: nersc/dvm_move
+#    parameters:
+#      tstep: 600.0 
