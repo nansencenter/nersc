@@ -8,6 +8,17 @@ add_library(fabm_models_nersc OBJECT
             dvm/upper_lower_boundaries_simple.F90
             dvm/weight_distribution.F90
             dvm/move.F90
+            # below this is a modular version of ecosmo
+            # based on the version that configures
+            # mesozooplankton diel vertical migration from 2025 NECCTON hindcast
+            modular/shared.F90
+            modular/nutrient.F90
+            modular/oxygen.F90
+            modular/organic_matter.F90
+            modular/opal.F90
+            modular/phytoplankton.F90
+            modular/zooplankton.F90
+            modular/caco3.F90
            )
 
 add_dependencies(fabm_models_nersc fabm_base)
