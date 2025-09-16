@@ -23,16 +23,18 @@ type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
 
     type (type_dependency_id)             :: id_temp, id_salt, id_par, id_parmean
 
-    type (type_diagnostic_variable_id)    :: id_primprod !, id_pcal
+    type (type_diagnostic_variable_id)    :: id_primprod, id_netpp !, id_pcal
     type (type_horizontal_dependency_id)  :: id_sfpar, id_meansfpar
 
     real(rk) :: MAXchl2nP, MINchl2nP 
     real(rk) :: alfaP !, aa
-    real(rk) :: mu, m
+    real(rk) :: mu, m, m2, Km2
     real(rk) :: rNH4, rNO3, rPO4, rSi
     real(rk) :: Psink
     real(rk) :: psi
+    real(rk) :: exulim, qexcr
     real(rk) :: silicate_flux_multiplier !, caco3_flux_multiplier
+    real(rk) :: SiUptLim
     !real(rk) :: calcR
 
     logical  :: turn_on_additional_diagnostics ! activates additional diagnostics for model debugging
@@ -54,7 +56,9 @@ end type type_ecosmo_phytoplankton
 
 
 type (type_bulk_standard_variable), parameter :: total_chlorophyll = type_bulk_standard_variable(name='total_chlorophyll',units='mg/m^3',aggregate_variable=.true.)
-type (type_bulk_standard_variable), parameter :: total_npp = type_bulk_standard_variable(name='total_npp',units='mgC/m3/s',aggregate_variable=.true.)
+type (type_bulk_standard_variable), parameter :: total_gpp = type_bulk_standard_variable(name='total_gpp',units='mgC/m3/d',aggregate_variable=.true.)
+type (type_bulk_standard_variable), parameter :: total_npp = type_bulk_standard_variable(name='total_npp',units='mgC/m3/d',aggregate_variable=.true.)
+
 !type (type_bulk_standard_variable), parameter :: calcite_production = type_bulk_standard_variable(name='calcite_production', units='mmolN m-3 s-1', aggregate_variable=.true.)
 type (type_bulk_standard_variable), parameter :: pbiomass = type_bulk_standard_variable(name='pbiomass',units='mg/m^3',aggregate_variable=.true.)
 
@@ -82,13 +86,17 @@ subroutine initialize(self,configunit)
     call self%get_parameter( self%rPO4, 'rPO4', 'mmolP/m**3', 'PO4 half saturation constant', default=0.05_rk,  scale_factor=Pmmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%rSi, 'rSi', 'mmolSi/m**3','SiO2 half saturation', default=0.50_rk,  scale_factor=Simmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%m, 'm', '1/day', 'mortality rate', default=0.04_rk,  scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%m2 , 'm2',         '1/day',      'P higher mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%Km2, 'Km2',         'mgC/m**3',      'half saturation for P higher mortality rate', default=300.0_rk)
     call self%get_parameter( self%Psink, 'Psink', 'm/day', 'phytoplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%MINchl2nP, 'MINchl2nP', 'mgChl/mmolN', 'minimum Chl to N ratio P', default=0.50_rk, scale_factor=Cmmol_to_Nmmol*Cmg_to_Cmmol)
     call self%get_parameter( self%MAXchl2nP, 'MAXchl2nP', 'mgChl/mmolN', 'maximum Chl to N ratio P', default=3.83_rk, scale_factor=Cmmol_to_Nmmol*Cmg_to_Cmmol)    
     call self%get_parameter( self%alfaP, 'alfaP', 'mmolN m2/(mgChl day W)**-1', 'initial slope P-I curve P', default=0.0393_rk, scale_factor=Nmmol_to_Cmmol*Cmmol_to_Cmg )
     call self%get_parameter( self%psi , 'psi', 'm**3/mmolN', 'NH4 inhibition', default=3.0_rk,   scale_factor=Cmmol_to_Nmmol*Cmg_to_Cmmol )
 !    call self%get_parameter( self%aa, 'aa', 'm**2/W', 'photosynthesis ef-cy', default=0.04_rk)
- 
+    call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.0_rk)
+    call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.0_rk) 
+    call self%get_parameter( self%SiUptLim,  'SiUptLim',   'mgC/m3', 'Stop Si uptake below this concentration',  default=80.0_rk)
 
     call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Psink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
 !    if (use_chl) then
@@ -102,8 +110,14 @@ subroutine initialize(self,configunit)
     !     self%id_c,scale_factor=light_att_phy,include_background=.true.)
     ! end if
 
-    call self%register_diagnostic_variable(self%id_primprod,'primprod','mgC/m3/s', 'primary production rate', output=output_time_step_averaged)
-    call self%add_to_aggregate_variable(total_npp, self%id_primprod)
+    call self%register_diagnostic_variable(self%id_primprod,'primprod','mgC/m3/s', &
+         'primary production rate', output=output_time_step_averaged)
+    call self%add_to_aggregate_variable(total_gpp, self%id_primprod)
+
+    call self%register_diagnostic_variable(self%id_netpp,'netpp','mgC/m**3/s', &
+         'net primary production rate', output=output_time_step_averaged)
+    call self%add_to_aggregate_variable(total_npp, self%id_netpp)
+
     call self%add_to_aggregate_variable(pbiomass, self%id_c)
 
     call self%register_state_dependency(self%id_no3, 'no3', 'mgC/m3', 'nitrate')
@@ -159,8 +173,9 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: det, dom
     real(rk) :: temp, salt, par
     real(rk) :: c, chl
-    real(rk) :: p_loss, limit, prod
+    real(rk) :: p_loss, limit, prod, nutlimit
     real(rk) :: up_nh4, up_no3, up_pho, up_sil, t_sil, up_n, psi
+    real(rk) :: highMort
     real(rk) :: Tdep ! temperature effect on P growth
     real(rk) :: blight !, aa
     real(rk) :: chl2c
@@ -169,7 +184,9 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: dic,alk
     real(rk) :: N_or_Si_uptake, P_uptake
     real(rk) :: mean_surface_par, mean_par
-    real(rk) :: Bg_fix
+    real(rk) :: exu
+    !real(rk) :: Bg_fix
+
 !    real(rk) :: Rstar
 
     _LOOP_BEGIN_
@@ -193,7 +210,7 @@ subroutine do(self,_ARGUMENTS_DO_)
         _GET_(self%id_dic,dic)
         _GET_(self%id_alk,alk)
     end if
-    p_loss = max(sign(-1.0_rk,c-0.1_rk),0.0_rk)
+    p_loss = max( sign( -1.0_rk, c - prevent_loss_P ), 0.0_rk ) 
 
    ! nutrient limitation factors
    ! k denotes half-saturation values
@@ -201,7 +218,7 @@ subroutine do(self,_ARGUMENTS_DO_)
     up_no3 = no3/(self%rNO3 + no3) * exp(-self%psi * nh4)
     up_n = up_nh4 + up_no3
     up_pho = pho/(self%rPO4 + pho)
-    t_sil = max(sil-80._rk,0.0_rk)
+    t_sil = max(sil-self%SiUptLim,0.0_rk)
     up_sil = t_sil/(self%rSi + t_sil)
 
     ! temperature dependence
@@ -223,11 +240,21 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     if (self%is_diatom) then
         limit = Tdep * min(blight, up_n, up_pho, up_sil) ! limitation in maximum growth (range: 0 - 1)
+        nutlimit = min(up_n, up_pho, up_sil)
     else
         limit = Tdep * min(blight, up_n, up_pho)
+        nutlimit = min(up_n, up_pho)
     end if
 
-    N_or_Si_uptake = self%mu * limit * c ! 
+    ! calculate exudation. Default: exulim=0, qexcr=0, thus ignored
+    exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) * p_loss
+
+    ! below are all the same primary production in seconds, 
+        ! but are also stored as nutrient specific versions if in future some functionality added.
+        ! nutrients rhs's later use their respective uptake/prod names 
+    N_or_Si_uptake = self%mu * limit * c ! primary production in seconds
+    P_uptake = self%mu * limit * c ! primary production in seconds
+    prod = self%mu * limit * c ! primary production in seconds
 
     ! if (self%is_cyano .and. mean_par > self%nfixation_minimum_daily_par) then
     !     Bg_fix = Tdep * min(blight, up_pho) - limit
@@ -237,14 +264,15 @@ subroutine do(self,_ARGUMENTS_DO_)
     ! end if
 
     !** 
-    prod = self%mu * limit * c ! primary production in seconds
-    P_uptake = prod
+!    prod = self%mu * limit * c ! primary production in seconds
+!    P_uptake = prod
     ! this includes the extra phosphate uptake due to n-fixation of cyanobacteria
     ! if phyto is not a cyano, this is essentially equal to N_or_Si_uptake calculated above
     ! but if there is n-fixation, this ensures the extra pho uptake unaccounted for
     ! as limit is modified within n-fixation if/else case above
     !**
-    _ADD_SOURCE_(self%id_c, (self%mu * limit - self%m * p_loss)*c )
+    highMort = self%m2 * ( c / ( c + self%Km2 ) )
+    _ADD_SOURCE_(self%id_c, (self%mu * limit * (1.0_rk - exu) - (self%m + highMort) * p_loss) * c )
 
 !    if (use_chl) then
         ! chlorophyll-a to C change
@@ -252,7 +280,7 @@ subroutine do(self,_ARGUMENTS_DO_)
         chl2c = max(self%MINchl2nP,chl2c)
         chl2c = min(self%MAXchl2nP,chl2c)
 
-        rhs = self%mu * limit * chl2c * c - (self%m * p_loss * chl )
+        rhs = self%mu * limit * chl2c * c * (1.0_rk - exu) - ( (self%m + highMort) * p_loss * chl )
         _ADD_SOURCE_(self%id_chl,rhs)
 !    end if
 
@@ -262,10 +290,10 @@ subroutine do(self,_ARGUMENTS_DO_)
     rhs_amm = -(up_nh4+0.5d-10)/(up_n+1.0d-10) * N_or_Si_uptake
     _ADD_SOURCE_(self%id_nh4, rhs_amm)
 
-    _ADD_SOURCE_(self%id_pho, -P_uptake) ! in case of non-cyano, prod_including_nfix = prod
+    _ADD_SOURCE_(self%id_pho, -P_uptake) 
 
     _ADD_SOURCE_(self%id_sil, -N_or_Si_uptake * self%silicate_flux_multiplier) ! will be effective only for diatoms
-    _ADD_SOURCE_(self%id_opal, self%m * p_loss * c * self%silicate_flux_multiplier) ! will be effective only for diatoms
+    _ADD_SOURCE_(self%id_opal, (self%m + highMort) * p_loss * c * self%silicate_flux_multiplier) ! will be effective only for diatoms
 
     rhs_oxy = (6.625*up_nh4 + 8.125*up_no3+1.d-10)/(up_n+1.d-10) * prod * Cmg_to_Cmmol * Cmmol_to_Nmmol 
     _ADD_SOURCE_(self%id_oxy, rhs_oxy)
@@ -293,10 +321,12 @@ subroutine do(self,_ARGUMENTS_DO_)
         _ADD_SOURCE_(self%id_alk, rhs )
     end if
 
-    _ADD_SOURCE_(self%id_det, (1._rk - frr) * self%m * c * p_loss)
-    _ADD_SOURCE_(self%id_dom, frr * self%m * c * p_loss)
+    _ADD_SOURCE_(self%id_det, (1._rk - frr) * (self%m+highMort) * c * p_loss)
+    _ADD_SOURCE_(self%id_dom, (frr * (self%m+highMort) * c * p_loss) + (self%mu * limit * exu * c) )
 
-    _SET_DIAGNOSTIC_(self%id_primprod, prod )   
+    _SET_DIAGNOSTIC_(self%id_primprod, prod * sedy0)
+
+    _SET_DIAGNOSTIC_(self%id_netpp, prod * sedy0 - c * 0.1_rk )   
 
     _LOOP_END_
 
@@ -324,8 +354,8 @@ subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
         - (8.621949d11) * tr**4            &
         - S*(0.017674_rk-10.754_rk*tr+2140.7_rk*tr**2)  )
  
-    o2flux = 5._rk/sedy0 * (o2sat - oxy)
- !   o2flux = 1._rk/sedy0 * (o2sat - oxy)
+ !   o2flux = 5._rk/sedy0 * (o2sat - oxy)
+    o2flux = 1._rk/sedy0 * (o2sat - oxy)
  
     _ADD_SURFACE_FLUX_(self%id_oxy,o2flux)
 

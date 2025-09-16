@@ -27,20 +27,24 @@ type,extends(type_base_model), public  :: type_ecosmo_zooplankton
     type (type_state_variable_id)         :: id_nh4, id_no3, id_sil, id_pho, id_det, id_dom, id_oxy, id_opal !, id_caco3
 
     type (type_dependency_id)             :: id_temp, id_salt, id_par
-    type (type_dependency_id)         :: id_pcal
+!    type (type_dependency_id)         :: id_pcal
 
     type (type_diagnostic_variable_id)    :: id_secprod
 
     type (type_horizontal_dependency_id)  :: id_sfpar
+
+    type (type_horizontal_dependency_id) :: id_lat
+    type (type_global_dependency_id)     :: id_yearday
 
     real(rk) :: Zsink
     integer  :: nprey
     real(rk) :: Minprey
     real(rk) :: grzP, grzZ  
     real(rk) :: Rg
-    real(rk) :: m
+    real(rk) :: m, m2, Km2
     real(rk) :: exc
     real(rk) :: gamma
+    real(rk) :: KsLightDep, scaleRg
     real(rk),allocatable :: pref(:), opal_multiplier(:), grz(:) !, caco3_multiplier(:)
     real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
     !real(rk),allocatable :: caco3_loss(:)
@@ -53,7 +57,7 @@ type,extends(type_base_model), public  :: type_ecosmo_zooplankton
 !     Model procedures
     procedure :: initialize
     procedure :: do
-    procedure :: get_vertical_movement
+!    procedure :: get_vertical_movement
 end type type_ecosmo_zooplankton
 
 type (type_bulk_standard_variable), parameter :: total_secp = type_bulk_standard_variable(name='total_secp',units='mgC/m3/s',aggregate_variable=.true.)
@@ -71,8 +75,8 @@ subroutine initialize(self,configunit)
     logical           :: prey_is_not_phyto
     logical           :: prey_is_diatom
     logical           :: prey_is_coccolith
-    real              :: z_loss
-
+    real(rk)          :: z_loss
+    real(rk)          :: scaleRg, KsLightDep
 
     !
     ! !REVISION HISTORY
@@ -85,9 +89,13 @@ subroutine initialize(self,configunit)
     call self%get_parameter( self%grzZ, 'grzZ', '1/day', 'Grazing rate on Z', default=0.50_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%Rg, 'Rg', 'mmolN/m**3', 'Zs, Zl half saturation',  default=0.50_rk,  scale_factor=Nmmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%m, 'm', '1/day', 'Z mortality rate', default=0.10_rk,  scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%m2 , 'm2',         '1/day',      'Z higher mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%Km2, 'Km2',         'mgC/m**3',      'half saturation for Z higher mortality rate', default=300.0_rk)
     call self%get_parameter( self%exc, 'exc', '1/day', 'Z excretion rate', default=0.06_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%gamma, 'gamma', '', 'Z assim. eff. on plankton', default=0.75_rk)
     call self%get_parameter( self%Zsink, 'Zsink', 'm/day', 'zooplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
+    call self%get_parameter( self%scaleRg,  'scaleRg',   'the minimum value for RgZl scaling for faster grazing while DVM active',  default=1.0_rk) ! default is off (full RgZl) ! remember that smaller Rg means faster feeding 
 
 !    call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Zsink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
     call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
@@ -118,13 +126,13 @@ subroutine initialize(self,configunit)
         self%has_chl(iprey) = .false. ! below, phyto will get .true. if use_chl 
 
         if (prey_is_not_phyto) then ! true for zoo and det, assign true in fabm.yaml
-           self%bio_loss_limit(iprey) = zoo_turn_off_loss_below_this
+           self%bio_loss_limit(iprey) = prevent_loss_Z
            self%grz(iprey) = self%grzZ
         else ! false (default) for phyto, no need to assign in fabm.yaml
            self%grz(iprey) = self%grzP
-           self%bio_loss_limit(iprey) = phyto_turn_off_loss_below_this
+           self%bio_loss_limit(iprey) = prevent_loss_P
         !    if (use_chl) then
-        !         self%has_chl(iprey) = .true.
+                 self%has_chl(iprey) = .true.
         !    end if
         end if
 
@@ -167,6 +175,8 @@ subroutine initialize(self,configunit)
 
     call self%register_dependency(self%id_sfpar,standard_variables%surface_downwelling_photosynthetic_radiative_flux)        
     call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
+    call self%register_dependency(self%id_lat,standard_variables%latitude)
+    call self%register_dependency(self%id_yearday,standard_variables%number_of_days_since_start_of_the_year)
 
     call self%add_to_aggregate_variable(zbiomass, self%id_c)
 end subroutine initialize
@@ -182,13 +192,50 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk),dimension(self%nprey) :: food_each, uptake_each, uptake_rate_each, pref
     real(rk) :: uptake, uptake_rate, food, rhs, rhs_oxy, rhs_dic, z_loss, rhs_opal !, rhs_caco3
     real(rk) :: bioom6, rhs_amm
-    real(rk) :: pcal
+    real(rk) :: highMort
+    !real(rk) :: pcal
+    ! DVM stuff
+    real(rk) :: latitude, yearday, declination, day_length
+    real, parameter :: pi = 3.14159265358979323846
+    real(rk) :: inside_acos
+    real(rk) :: scale_Rg
+    real(rk) :: light_dep_mort
+    real(rk) :: par
+    ! -----
+
 
     _LOOP_BEGIN_
 
     ! Retrieve current (local) state variable values.
     _GET_(self%id_c,c)
+    _GET_(self%id_par,par)
     _GET_(self%id_oxy,oxy)
+
+    ! This is for diel vertical migration of mesozooplankton purposes
+    ! Default is off
+    _GET_SURFACE_(self%id_lat,latitude) ! degN
+    _GET_GLOBAL_(self%id_yearday,yearday) !decimal day of the year
+
+    latitude = latitude * pi / 180.0
+    declination = 23.44 * pi / 180.0 * sin(2.0 * pi / 365.0 * (yearday - 81.0))
+    inside_acos = max( -1.0_rk, min( 1.0_rk,-tan(latitude) * tan(declination) ) )
+
+    day_length = 24.0 / pi * acos(inside_acos)
+    day_length = max(0.0_rk, min(24.0_rk, day_length))
+    if (self%is_migrator) then
+        scale_Rg = max( self%scaleRg , min(1.0_rk,(24.0_rk - day_length)/24.0_rk) )
+        ! light dependent mortality multiplier
+        if (self%KsLightDep < 1.0e-18_rk) then 
+            light_dep_mort = 1.0_rk ! light-dependent mortality is off by default
+        else
+            light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreases
+        end if
+    else
+        scale_Rg = 1.0_rk
+        light_dep_mort = 1.0_rk ! maximum mortality everywhere for non-migrators
+    end if
+    ! --------------
+
     !_GET_(self%id_pcal,pcal)
     ! if (use_calcifier) then
     !     _GET_(self%id_caco3, caco3)
@@ -202,17 +249,21 @@ subroutine do(self,_ARGUMENTS_DO_)
         bio_loss(iprey) = max(sign(-1.0_rk,preyc(iprey)-self%bio_loss_limit(iprey)),0.0_rk)
         !caco3_loss(iprey) = max(sign(-1.0_rk,caco3-0.01),0.0_rk)
     end do
-    z_loss = max(sign(-1.0_rk,c - zoo_turn_off_loss_below_this),0.0_rk) ! self loss switch 
+    z_loss = max(sign(-1.0_rk,c - prevent_loss_Z),0.0_rk) ! self loss switch 
 
     pref = self%pref
-    ! Compute total available prey (mg C/m3), weighted according to effective prey preferences.
-    food_each = pref * preyc * bio_loss
+!    ! Compute total available prey (mg C/m3), weighted according to effective prey preferences.
+!    food_each = pref * preyc * bio_loss 
+!    food = sum(food_each)
+!    ! Compute rates
+!    uptake_rate_each = self%grz * food_each**2 / ( (self%Rg * scale_Rg )**2 + food**2)
+!    uptake_rate = sum(uptake_rate_each) ! assimilation is included below
+
+    food_each = pref * preyc
     food = sum(food_each)
-    ! Compute rates
-    uptake_rate_each = self%grz * food_each / (self%Rg + food)
+    
+    uptake_rate_each = bio_loss * self%grz * pref * preyc**2/((self%Rg * scale_Rg )**2 + food**2) 
     uptake_rate = sum(uptake_rate_each) ! assimilation is included below
-
-
 
     ! ! Prey uptake based on a Michaelis-Menten/Type II functional response with dynamic preferences "pref".
     ! ! put_u is the relative rate of uptake (1/d), rug the absolute rate of uptake (mg C/m3/d)
@@ -243,14 +294,18 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     ! Below are the rates that do not require a loop like that above
     ! zoo
-    rhs = ( self%gamma * uptake_rate - z_loss * ( self%m + self%exc ) ) * c 
+
+
+    highMort = self%m2 * ( c/(c + self%Km2) ) * light_dep_mort
+
+    rhs = ( self%gamma * uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc ) ) * c 
     _ADD_SOURCE_(self%id_c, rhs)
     ! nutrients
     rhs = z_loss * self%exc * c
     _ADD_SOURCE_(self%id_nh4, rhs)
     _ADD_SOURCE_(self%id_pho, rhs)
     ! det & dom
-    rhs = ( (1.0_rk - self%gamma) * uptake_rate + z_loss * self%m ) * c
+    rhs = ( (1.0_rk - self%gamma) * uptake_rate + z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort ) ) * c
     _ADD_SOURCE_(self%id_det, (1.0_rk - frr) * rhs)
     _ADD_SOURCE_(self%id_dom, frr * rhs)
 
@@ -282,34 +337,34 @@ end subroutine do
 
 
 
-subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
+! subroutine get_vertical_movement(self,_ARGUMENTS_GET_VERTICAL_MOVEMENT_)
 
-    class (type_ecosmo_zooplankton),intent(in) :: self
-    _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
-    real(rk) :: surface_par, par, par_bottom_EZ
+!     class (type_ecosmo_zooplankton),intent(in) :: self
+!     _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
+!     real(rk) :: surface_par, par, par_bottom_EZ
 
-    _LOOP_BEGIN_
+!     _LOOP_BEGIN_
 
-    _GET_HORIZONTAL_(self%id_sfpar,surface_par)
-    _GET_(self%id_par, par)
+!     _GET_HORIZONTAL_(self%id_sfpar,surface_par)
+!     _GET_(self%id_par, par)
 
-    par_bottom_EZ = surface_par / 1000.0_rk
+!     par_bottom_EZ = surface_par / 1000.0_rk
 
-    if (self%is_migrator) then
-        if (surface_par < 1.0_rk) then
-            _SET_VERTICAL_MOVEMENT_(self%id_c,self%swimspd)
-        else 
-            if (par.gt.par_bottom_EZ) then
-                _SET_VERTICAL_MOVEMENT_(self%id_c,-self%swimspd)
-            else
-                _SET_VERTICAL_MOVEMENT_(self%id_c,self%swimspd)
-            end if
-        end if
-    else
-         _SET_VERTICAL_MOVEMENT_(self%id_c,-self%Zsink)
-    endif
-    _LOOP_END_
- end subroutine get_vertical_movement
+!     if (self%is_migrator) then
+!         if (surface_par < 1.0_rk) then
+!             _SET_VERTICAL_MOVEMENT_(self%id_c,self%swimspd)
+!         else 
+!             if (par.gt.par_bottom_EZ) then
+!                 _SET_VERTICAL_MOVEMENT_(self%id_c,-self%swimspd)
+!             else
+!                 _SET_VERTICAL_MOVEMENT_(self%id_c,self%swimspd)
+!             end if
+!         end if
+!     else
+!          _SET_VERTICAL_MOVEMENT_(self%id_c,-self%Zsink)
+!     endif
+!     _LOOP_END_
+!  end subroutine get_vertical_movement
 ! -------------------------------------------------------------------------
 
 end module

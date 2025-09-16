@@ -38,10 +38,12 @@ module ecosmo_shared
 !   logical  :: use_chl = .false.
 !   logical  :: use_chl_in_PI_curve = .false.
 !   logical  :: use_calcifier = .false.
-   real(rk) :: phyto_turn_off_loss_below_this = 0.5_rk
-   real(rk) :: zoo_turn_off_loss_below_this = 0.05_rk
+!   real(rk) :: phyto_turn_off_loss_below_this = 0.5_rk
+!   real(rk) :: zoo_turn_off_loss_below_this = 0.05_rk
    real(rk) :: light_att_chl = 0.04_rk
 !   real(rk) :: light_att_phy = 0.04_rk / (Nmmol_to_Cmmol * Cmmol_to_Cmg)
+   real(rk) :: prevent_loss_P = 0.5 ! mgC/m3
+   real(rk) :: prevent_loss_Z = 0.05
 
 
    type,extends(type_base_model), public  :: type_ecosmo_shared
@@ -63,10 +65,12 @@ module ecosmo_shared
 !    call self%get_parameter( use_chl, "use_chl", "", "switch chlorophyll/c dynamics",default=use_chl)
 !    call self%get_parameter( use_calcifier, "use_calcifier", "", "include caco3/sediment_caco3 (and coccoliths) in the model",default=use_calcifier)
 !    call self%get_parameter( use_chl_in_PI_curve, "use_chl_in_PI_curve","","activated chl dependent light limitation",default=use_chl_in_PI_curve)
-    call self%get_parameter( phyto_turn_off_loss_below_this, "phyto_turn_off_loss_below_this", "-", "turn off loss terms below this concentration", default=phyto_turn_off_loss_below_this)
-    call self%get_parameter( zoo_turn_off_loss_below_this, "zoo_turn_off_loss_below_this", "-", "turn off loss terms below this concentration", default=zoo_turn_off_loss_below_this)
+!    call self%get_parameter( phyto_turn_off_loss_below_this, "phyto_turn_off_loss_below_this", "-", "turn off loss terms below this concentration", default=phyto_turn_off_loss_below_this)
+!    call self%get_parameter( zoo_turn_off_loss_below_this, "zoo_turn_off_loss_below_this", "-", "turn off loss terms below this concentration", default=zoo_turn_off_loss_below_this)
     call self%get_parameter( light_att_chl , 'light_att_chl', 'm**2/mgCHL', 'chl self-shading', default=light_att_chl )
 !    call self%get_parameter( light_att_phy , 'light_att_phy', 'm**2/mmolN', 'phyto self-shading', default=light_att_phy, scale_factor=1.0_rk/(Nmmol_to_Cmmol * Cmmol_to_Cmg) )
+    call self%get_parameter( prevent_loss_P,  'prevent_loss_P',  'mgC/m3', 'P biomass low threshold where loss terms are stopped for survival',  default=prevent_loss_P) 
+    call self%get_parameter( prevent_loss_Z,  'prevent_loss_Z',  'mgC/m3', 'Z biomass low threshold where loss terms are stopped for survival',  default=prevent_loss_Z) 
 
   end subroutine initialize
 
