@@ -39,13 +39,13 @@ type,extends(type_base_model), public  :: type_ecosmo_zooplankton
     real(rk) :: Zsink
     integer  :: nprey
     real(rk) :: Minprey
-    real(rk) :: grzP, grzZ  
+    real(rk) :: grzP, grzZ, grzD  
     real(rk) :: Rg
     real(rk) :: m, m2, Km2
     real(rk) :: exc
-    real(rk) :: gamma
+    real(rk) :: gammaZ, gammaP, gammaD
     real(rk) :: KsLightDep, scaleRg
-    real(rk),allocatable :: pref(:), opal_multiplier(:), grz(:) !, caco3_multiplier(:)
+    real(rk),allocatable :: pref(:), opal_multiplier(:), grz(:), gammaPrey(:) !, caco3_multiplier(:)
     real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
     !real(rk),allocatable :: caco3_loss(:)
     logical, allocatable :: has_chl(:)
@@ -72,7 +72,9 @@ subroutine initialize(self,configunit)
     ! !LOCAL VARIABLES:
     integer           :: iprey
     character(len=16) :: index
-    logical           :: prey_is_not_phyto
+!    logical           :: prey_is_not_phyto
+    logical           :: prey_is_zoo
+    logical           :: prey_is_detritus
     logical           :: prey_is_diatom
     logical           :: prey_is_coccolith
     real(rk)          :: z_loss
@@ -87,12 +89,15 @@ subroutine initialize(self,configunit)
     call self%get_parameter( self%swimspd, 'swimspd', 'm/day', 'zooplankton swimming speed', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%grzP, 'grzP', '1/day', 'Grazing rate on P', scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%grzZ, 'grzZ', '1/day', 'Grazing rate on Z', default=0.50_rk,  scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%grzD, 'grzD', '1/day', 'Grazing rate on Det.', default=0.50_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%Rg, 'Rg', 'mmolN/m**3', 'Zs, Zl half saturation',  default=0.50_rk,  scale_factor=Nmmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%m, 'm', '1/day', 'Z mortality rate', default=0.10_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%m2 , 'm2',         '1/day',      'Z higher mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%Km2, 'Km2',         'mgC/m**3',      'half saturation for Z higher mortality rate', default=300.0_rk)
     call self%get_parameter( self%exc, 'exc', '1/day', 'Z excretion rate', default=0.06_rk,  scale_factor=1.0_rk/sedy0)
-    call self%get_parameter( self%gamma, 'gamma', '', 'Z assim. eff. on plankton', default=0.75_rk)
+    call self%get_parameter( self%gammaZ, 'gammaZ', '', 'Z assim. eff. on plankton', default=0.75_rk)
+    call self%get_parameter( self%gammaP, 'gammaP', '', 'P assim. eff. on plankton', default=0.75_rk)
+    call self%get_parameter( self%gammaD, 'gammaD', '', 'Det. assim. eff. on plankton', default=0.75_rk)
     call self%get_parameter( self%Zsink, 'Zsink', 'm/day', 'zooplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
     call self%get_parameter( self%scaleRg,  'scaleRg',   'the minimum value for RgZl scaling for faster grazing while DVM active',  default=1.0_rk) ! default is off (full RgZl) ! remember that smaller Rg means faster feeding 
@@ -116,25 +121,43 @@ subroutine initialize(self,configunit)
 
     allocate(self%bio_loss_limit(self%nprey))
     allocate(self%grz(self%nprey))
+    allocate(self%gammaPrey(self%nprey))
     do iprey=1,self%nprey
         write (index,'(i0)') iprey
-        call self%get_parameter(prey_is_not_phyto,'prey'//trim(index)//'_is_not_phyto','','prey type '//trim(index)//' is not phytoplankton',default=.false.)
+!        call self%get_parameter(prey_is_not_phyto,'prey'//trim(index)//'_is_not_phyto','','prey type '//trim(index)//' is not phytoplankton',default=.false.)
+        call self%get_parameter(prey_is_zoo,'prey'//trim(index)//'_is_zoo','','prey type '//trim(index)//' is zooplankton',default=.false.)
+        call self%get_parameter(prey_is_detritus,'prey'//trim(index)//'_is_detritus','','prey type '//trim(index)//' is detritus',default=.false.)
         call self%get_parameter(prey_is_diatom,'prey'//trim(index)//'_is_diatom','','prey type '//trim(index)//' is diatom',default=.false.)
         ! if (use_calcifier) then
         !     call self%get_parameter(prey_is_coccolith,'prey'//trim(index)//'_is_coccolith','','prey type '//trim(index)//' is coccolith',default=.false.)
         ! end if
         self%has_chl(iprey) = .false. ! below, phyto will get .true. if use_chl 
 
-        if (prey_is_not_phyto) then ! true for zoo and det, assign true in fabm.yaml
+        ! if (prey_is_not_phyto) then ! true for zoo and det, assign true in fabm.yaml
+        !    self%bio_loss_limit(iprey) = prevent_loss_Z
+        !    self%grz(iprey) = self%grzZ
+        ! else ! false (default) for phyto, no need to assign in fabm.yaml
+        !    self%grz(iprey) = self%grzP
+        !    self%bio_loss_limit(iprey) = prevent_loss_P
+        ! !    if (use_chl) then
+        !          self%has_chl(iprey) = .true.
+        ! !    end if
+        ! end if
+
+        if (prey_is_zoo) then
            self%bio_loss_limit(iprey) = prevent_loss_Z
            self%grz(iprey) = self%grzZ
-        else ! false (default) for phyto, no need to assign in fabm.yaml
+           self%gammaPrey(iprey) = self%gammaZ 
+        else if (prey_is_detritus) then 
+           self%bio_loss_limit(iprey) = 0.0_rk 
+           self%grz(iprey) = self%grzD
+           self%gammaPrey(iprey) = self%gammaD
+        else
+           self%bio_loss_limit(iprey) = prevent_loss_P 
            self%grz(iprey) = self%grzP
-           self%bio_loss_limit(iprey) = prevent_loss_P
-        !    if (use_chl) then
-                 self%has_chl(iprey) = .true.
-        !    end if
-        end if
+           self%gammaPrey(iprey) = self%gammaP
+           self%has_chl(iprey) = .true.
+        end if   
 
         self%opal_multiplier(iprey) = 0.0_rk
         if (prey_is_diatom) then ! default is false. Assign true for diatoms in fabm.yaml
@@ -191,6 +214,7 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk),dimension(self%nprey) :: preyc, preychl, bio_loss !, caco3_loss
     real(rk),dimension(self%nprey) :: food_each, uptake_each, uptake_rate_each, pref
     real(rk) :: uptake, uptake_rate, food, rhs, rhs_oxy, rhs_dic, z_loss, rhs_opal !, rhs_caco3
+    real(rk) :: assimilated_uptake_rate, unassimilated_uptake_rate
     real(rk) :: bioom6, rhs_amm
     real(rk) :: highMort
     !real(rk) :: pcal
@@ -263,7 +287,9 @@ subroutine do(self,_ARGUMENTS_DO_)
     food = sum(food_each)
     
     uptake_rate_each = bio_loss * self%grz * pref * preyc**2/((self%Rg * scale_Rg )**2 + food**2) 
-    uptake_rate = sum(uptake_rate_each) ! assimilation is included below
+!    uptake_rate = sum(uptake_rate_each) ! assimilation is included below
+    assimilated_uptake_rate = sum( self%gammaPrey * uptake_rate_each)
+    unassimilated_uptake_rate = sum( (1.0_rk - self%gammaPrey) * uptake_rate_each)
 
     ! ! Prey uptake based on a Michaelis-Menten/Type II functional response with dynamic preferences "pref".
     ! ! put_u is the relative rate of uptake (1/d), rug the absolute rate of uptake (mg C/m3/d)
@@ -298,14 +324,16 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     highMort = self%m2 * ( c/(c + self%Km2) ) * light_dep_mort
 
-    rhs = ( self%gamma * uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc ) ) * c 
+!    rhs = ( self%gamma * uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc ) ) * c 
+    rhs = ( assimilated_uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc ) ) * c
     _ADD_SOURCE_(self%id_c, rhs)
     ! nutrients
     rhs = z_loss * self%exc * c
     _ADD_SOURCE_(self%id_nh4, rhs)
     _ADD_SOURCE_(self%id_pho, rhs)
     ! det & dom
-    rhs = ( (1.0_rk - self%gamma) * uptake_rate + z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort ) ) * c
+!    rhs = ( (1.0_rk - self%gamma) * uptake_rate + z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort ) ) * c
+    rhs = ( unassimilated_uptake_rate + z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort ) ) * c
     _ADD_SOURCE_(self%id_det, (1.0_rk - frr) * rhs)
     _ADD_SOURCE_(self%id_dom, frr * rhs)
 

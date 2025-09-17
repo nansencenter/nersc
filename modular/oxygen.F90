@@ -17,14 +17,14 @@ public type_ecosmo_oxygen
 type,extends(type_base_model), public  :: type_ecosmo_oxygen
     type (type_state_variable_id)         :: id_c
     type (type_state_variable_id)         :: id_no3, id_nh4, id_alk
-    type (type_dependency_id)             :: id_temp
+    type (type_dependency_id)             :: id_temp, id_salt
 
     contains
 
 !     Model procedures
     procedure :: initialize
     procedure :: do
-!    procedure :: do_surface
+    procedure :: do_surface
 
 end type type_ecosmo_oxygen
 
@@ -43,6 +43,7 @@ subroutine initialize(self,configunit)
     call self%register_state_dependency(self%id_no3, 'no3', 'mgC/m3', 'nitrate')
     call self%register_state_dependency(self%id_nh4, 'nh4', 'mgC/m3', 'ammonium')
     call self%register_dependency(self%id_temp,standard_variables%temperature)
+    call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
     if (couple_co2) then
         call self%register_state_dependency(self%id_alk, 'alk','mmol m-3','alkalinity budget')
     end if
@@ -85,5 +86,35 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     _LOOP_END_
 end subroutine do
+
+subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+    class (type_ecosmo_oxygen),intent(in) :: self
+    _DECLARE_ARGUMENTS_DO_SURFACE_
+ 
+    real(rk) :: o2flux, T, tr, S, o2sat, oxy
+
+    _HORIZONTAL_LOOP_BEGIN_
+ 
+    _GET_(self%id_temp,T)
+    _GET_(self%id_salt,S)
+    _GET_(self%id_c,oxy)
+
+   ! Oxygen saturation micromol/liter__(Benson and Krause, 1984)
+    tr = 1.0_rk/(T + 273.15_rk)
+    o2sat= exp(- 135.90205_rk              &
+        + (1.575701d05 ) * tr               &
+        - (6.642308d07 ) * tr**2            &
+        + (1.243800d10) * tr**3            &
+        - (8.621949d11) * tr**4            &
+        - S*(0.017674_rk-10.754_rk*tr+2140.7_rk*tr**2)  )
+ 
+ !   o2flux = 5._rk/sedy0 * (o2sat - oxy)
+    o2flux = 1._rk/sedy0 * (o2sat - oxy)
+ 
+    _ADD_SURFACE_FLUX_(self%id_c,o2flux)
+
+    _HORIZONTAL_LOOP_END_
+
+end subroutine do_surface
 
 end module

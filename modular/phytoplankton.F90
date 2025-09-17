@@ -49,7 +49,7 @@ type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
 !     Model procedures
     procedure :: initialize
     procedure :: do
-    procedure :: do_surface
+!    procedure :: do_surface
 !    procedure :: get_light_extinction
 
 end type type_ecosmo_phytoplankton
@@ -332,36 +332,36 @@ subroutine do(self,_ARGUMENTS_DO_)
 
 end subroutine do
 
-subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
-    class (type_ecosmo_phytoplankton),intent(in) :: self
-    _DECLARE_ARGUMENTS_DO_SURFACE_
+! subroutine do_surface(self,_ARGUMENTS_DO_SURFACE_)
+!     class (type_ecosmo_phytoplankton),intent(in) :: self
+!     _DECLARE_ARGUMENTS_DO_SURFACE_
  
-    real(rk) :: o2flux, T, tr, S, o2sat, oxy
-    real(rk) :: no3flux, phoflux
+!     real(rk) :: o2flux, T, tr, S, o2sat, oxy
+!     real(rk) :: no3flux, phoflux
 
-    _HORIZONTAL_LOOP_BEGIN_
+!     _HORIZONTAL_LOOP_BEGIN_
  
-    _GET_(self%id_temp,T)
-    _GET_(self%id_salt,S)
-    _GET_(self%id_oxy,oxy)
+!     _GET_(self%id_temp,T)
+!     _GET_(self%id_salt,S)
+!     _GET_(self%id_oxy,oxy)
 
-   ! Oxygen saturation micromol/liter__(Benson and Krause, 1984)
-    tr = 1.0_rk/(T + 273.15_rk)
-    o2sat= exp(- 135.90205_rk              &
-        + (1.575701d05 ) * tr               &
-        - (6.642308d07 ) * tr**2            &
-        + (1.243800d10) * tr**3            &
-        - (8.621949d11) * tr**4            &
-        - S*(0.017674_rk-10.754_rk*tr+2140.7_rk*tr**2)  )
+!    ! Oxygen saturation micromol/liter__(Benson and Krause, 1984)
+!     tr = 1.0_rk/(T + 273.15_rk)
+!     o2sat= exp(- 135.90205_rk              &
+!         + (1.575701d05 ) * tr               &
+!         - (6.642308d07 ) * tr**2            &
+!         + (1.243800d10) * tr**3            &
+!         - (8.621949d11) * tr**4            &
+!         - S*(0.017674_rk-10.754_rk*tr+2140.7_rk*tr**2)  )
  
- !   o2flux = 5._rk/sedy0 * (o2sat - oxy)
-    o2flux = 1._rk/sedy0 * (o2sat - oxy)
+!  !   o2flux = 5._rk/sedy0 * (o2sat - oxy)
+!     o2flux = 1._rk/sedy0 * (o2sat - oxy)
  
-    _ADD_SURFACE_FLUX_(self%id_oxy,o2flux)
+!     _ADD_SURFACE_FLUX_(self%id_oxy,o2flux)
 
-    _HORIZONTAL_LOOP_END_
+!     _HORIZONTAL_LOOP_END_
 
-end subroutine do_surface
+! end subroutine do_surface
 
 ! subroutine get_light_extinction(self,_ARGUMENTS_GET_EXTINCTION_)
 !     class (type_ecosmo_phytoplankton), intent(in) :: self
