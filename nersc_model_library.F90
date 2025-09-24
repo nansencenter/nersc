@@ -31,9 +31,13 @@ contains
       use ecosmo_oxygen
       use ecosmo_organic_matter
       use ecosmo_opal
-      use ecosmo_phytoplankton      
+      use ecosmo_phytoplankton 
+      use ecosmo_diatom
+      use ecosmo_coccolith
+      use ecosmo_phy     
       use ecosmo_zooplankton
       use ecosmo_caco3
+      use ecosmo_sediment
       ! Add new models here
 
       class (type_factory),intent(in) :: self
@@ -56,8 +60,12 @@ contains
          case ('ecosmo_organic_matter');     allocate(type_ecosmo_organic_matter::model)
          case ('ecosmo_opal');     allocate(type_ecosmo_opal::model)
          case ('ecosmo_phytoplankton');     allocate(type_ecosmo_phytoplankton::model)
+         case ('ecosmo_diatom');     allocate(type_ecosmo_diatom::model)
+         case ('ecosmo_coccolith');     allocate(type_ecosmo_coccolith::model)
+         case ('ecosmo_phy');     allocate(type_ecosmo_phy::model)
          case ('ecosmo_zooplankton');     allocate(type_ecosmo_zooplankton::model)
          case ('ecosmo_caco3');     allocate(type_ecosmo_caco3::model)
+         case ('ecosmo_sediment');     allocate(type_ecosmo_sediment::model)
          ! Add new models here
       end select
 

@@ -1,6 +1,6 @@
 #include "fabm_driver.h"
 
-module ecosmo_phytoplankton
+module ecosmo_diatom
 
 use fabm_types
 use fabm_expressions
@@ -11,15 +11,15 @@ implicit none
 private
 
 !PUBLIC MEMBER FUNCTIONS:
-public type_ecosmo_phytoplankton
+public type_ecosmo_diatom
 
 ! !PUBLIC DERIVED TYPES:
-type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
+type,extends(type_base_model), public  :: type_ecosmo_diatom
 !     Variable identifiers
-    type (type_state_variable_id)         :: id_no3, id_nh4, id_pho,  id_oxy
+    type (type_state_variable_id)         :: id_no3, id_nh4, id_pho, id_sil, id_oxy
     type (type_state_variable_id)         :: id_c, id_chl
     type (type_state_variable_id)         :: id_alk, id_dic
-    type (type_state_variable_id)         :: id_det, id_dom
+    type (type_state_variable_id)         :: id_det, id_dom, id_opal 
 
     type (type_dependency_id)             :: id_temp, id_salt, id_par, id_parmean
 
@@ -29,12 +29,14 @@ type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
     real(rk) :: MAXchl2nP, MINchl2nP 
     real(rk) :: alfaP 
     real(rk) :: mu, m, m2, Km2
-    real(rk) :: rNH4, rNO3, rPO4
+    real(rk) :: rNH4, rNO3, rPO4, rSi
     real(rk) :: Psink
     real(rk) :: psi
     real(rk) :: exulim, qexcr
+    real(rk) :: SiUptLim
 
 !    logical  :: turn_on_additional_diagnostics ! activates additional diagnostics for model debugging
+!    logical  :: is_diatom ! phytoplankton is a diatom
 
     contains
 
@@ -42,7 +44,7 @@ type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
     procedure :: initialize
     procedure :: do
 
-end type type_ecosmo_phytoplankton
+end type type_ecosmo_diatom
 
 
 type (type_bulk_standard_variable), parameter :: total_chlorophyll = type_bulk_standard_variable(name='total_chlorophyll',units='mg/m^3',aggregate_variable=.true.)
@@ -54,7 +56,7 @@ contains
 subroutine initialize(self,configunit)
     !
     ! !INPUT PARAMETERS:
-    class (type_ecosmo_phytoplankton), intent(inout),target  :: self
+    class (type_ecosmo_diatom), intent(inout),target  :: self
     integer,  intent(in) :: configunit
  
     !
@@ -63,12 +65,14 @@ subroutine initialize(self,configunit)
     !  Veli Çağlar Yumruktepe:
     !       XXX
     
+!    call self%get_parameter( self%is_diatom, 'is_diatom', '', 'use silicate', default=.false. )
 !    call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)
 
     call self%get_parameter( self%mu , 'mu',  '1/day', 'max growth rate', default=1.30_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%rNH4, 'rNH4', 'mmolN/m**3', 'NH4 half saturation constant', default=0.20_rk, scale_factor=Nmmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%rNO3, 'rNO3', 'mmolN/m**3', 'NO3 half saturation constant', default=0.50_rk, scale_factor=Nmmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%rPO4, 'rPO4', 'mmolP/m**3', 'PO4 half saturation constant', default=0.05_rk,  scale_factor=Pmmol_to_Cmmol*Cmmol_to_Cmg)
+    call self%get_parameter( self%rSi, 'rSi', 'mmolSi/m**3','SiO2 half saturation', default=0.50_rk,  scale_factor=Simmol_to_Cmmol*Cmmol_to_Cmg)
     call self%get_parameter( self%m, 'm', '1/day', 'mortality rate', default=0.04_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%m2 , 'm2',         '1/day',      'P higher mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%Km2, 'Km2',         'mgC/m**3',      'half saturation for P higher mortality rate', default=300.0_rk)
@@ -79,6 +83,7 @@ subroutine initialize(self,configunit)
     call self%get_parameter( self%psi , 'psi', 'm**3/mmolN', 'NH4 inhibition', default=3.0_rk,   scale_factor=Cmmol_to_Nmmol*Cmg_to_Cmmol )
     call self%get_parameter( self%exulim,  'exulim',   '', 'fraction of GPP released as DOC (exudation) due to nutrient limiting conditions',  default=0.0_rk)
     call self%get_parameter( self%qexcr,  'qexcr',   '', 'fraction of GPP released as DOC (excretion) due to activity',  default=0.0_rk) 
+    call self%get_parameter( self%SiUptLim,  'SiUptLim',   'mgC/m3', 'Stop Si uptake below this concentration',  default=80.0_rk)
 
     call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Psink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
     call self%register_state_variable(self%id_chl, 'chl', 'mgChl/m3', 'chlorophyll', minimum=1.0e-7_rk/27., vertical_movement=-self%Psink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg/27.)
@@ -102,6 +107,8 @@ subroutine initialize(self,configunit)
     call self%register_state_dependency(self%id_oxy, 'oxy', 'mmol/m3', 'oxygen')
     call self%register_state_dependency(self%id_det, 'det', 'mgC/m3', 'detritus')
     call self%register_state_dependency(self%id_dom, 'dom', 'mgC/m3', 'dom')
+    call self%register_state_dependency(self%id_opal, 'opal', 'mgC/m3', 'opal')
+    call self%register_state_dependency(self%id_sil, 'sil', 'mgC/m3', 'silicate')
 
     call self%register_dependency(self%id_temp,standard_variables%temperature)
     call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
@@ -116,19 +123,19 @@ end subroutine initialize
 
 subroutine do(self,_ARGUMENTS_DO_)
 
-    class (type_ecosmo_phytoplankton),intent(in) :: self
+    class (type_ecosmo_diatom),intent(in) :: self
     _DECLARE_ARGUMENTS_DO_
-    real(rk) :: no3,nh4,pho,oxy
+    real(rk) :: no3,nh4,pho,sil,oxy
     real(rk) :: det, dom
     real(rk) :: temp, salt, par
     real(rk) :: c, chl
     real(rk) :: p_loss, limit, prod, nutlimit
-    real(rk) :: up_nh4, up_no3, up_pho, up_n, psi
+    real(rk) :: up_nh4, up_no3, up_pho, up_sil, t_sil, up_n, psi
     real(rk) :: highMort
     real(rk) :: Tdep ! temperature effect on P growth
     real(rk) :: blight !, aa
     real(rk) :: chl2c
-    real(rk) :: rhs, rhs_amm, rhs_nit, rhs_oxy 
+    real(rk) :: rhs, rhs_amm, rhs_nit, rhs_oxy , rhs_caco3
     real(rk) :: bioom6
     real(rk) :: dic,alk
     real(rk) :: N_or_Si_uptake, P_uptake
@@ -144,6 +151,7 @@ subroutine do(self,_ARGUMENTS_DO_)
     _GET_(self%id_no3,no3)
     _GET_(self%id_nh4,nh4)
     _GET_(self%id_pho,pho)
+    _GET_(self%id_sil,sil)
     _GET_(self%id_oxy,oxy)
     _GET_(self%id_det,det)
     _GET_(self%id_dom,dom)
@@ -161,13 +169,15 @@ subroutine do(self,_ARGUMENTS_DO_)
     up_no3 = no3/(self%rNO3 + no3) * exp(-self%psi * nh4)
     up_n = up_nh4 + up_no3
     up_pho = pho/(self%rPO4 + pho)
+    t_sil = max(sil-self%SiUptLim,0.0_rk)
+    up_sil = t_sil/(self%rSi + t_sil)
 
     ! temperature dependence
     Tdep = 1.0_rk
     blight  = max( ((chl/c) * self%alfaP * par) / sqrt((self%mu * sedy0)**2 + (chl/c)**2 * self%alfaP**2 * (par**2)) ,0.0_rk)
 
-    limit = Tdep * min(blight, up_n, up_pho)
-    nutlimit = min(up_n, up_pho)
+    limit = Tdep * min(blight, up_n, up_pho, up_sil) ! limitation in maximum growth (range: 0 - 1)
+    nutlimit = min(up_n, up_pho, up_sil)
 
     ! calculate exudation. Default: exulim=0, qexcr=0, thus ignored
     exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) * p_loss
@@ -197,6 +207,9 @@ subroutine do(self,_ARGUMENTS_DO_)
     _ADD_SOURCE_(self%id_nh4, rhs_amm)
 
     _ADD_SOURCE_(self%id_pho, -P_uptake) 
+
+    _ADD_SOURCE_(self%id_sil, -N_or_Si_uptake ) 
+    _ADD_SOURCE_(self%id_opal, (self%m + highMort) * p_loss * c ) 
 
     rhs_oxy = (6.625*up_nh4 + 8.125*up_no3+1.d-10)/(up_n+1.d-10) * prod * Cmg_to_Cmmol * Cmmol_to_Nmmol 
     _ADD_SOURCE_(self%id_oxy, rhs_oxy)

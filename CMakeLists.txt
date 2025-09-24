@@ -17,8 +17,12 @@ add_library(fabm_models_nersc OBJECT
             modular/organic_matter.F90
             modular/opal.F90
             modular/phytoplankton.F90
+            modular/diatom.F90
+            modular/coccolith.F90
+            modular/phy.F90
             modular/zooplankton.F90
             modular/caco3.F90
+            modular/sediment.F90
            )
 
 add_dependencies(fabm_models_nersc fabm_base)

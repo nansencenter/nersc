@@ -1,6 +1,6 @@
 #include "fabm_driver.h"
 
-module ecosmo_phytoplankton
+module ecosmo_coccolith
 
 use fabm_types
 use fabm_expressions
@@ -11,28 +11,29 @@ implicit none
 private
 
 !PUBLIC MEMBER FUNCTIONS:
-public type_ecosmo_phytoplankton
+public type_ecosmo_coccolith
 
 ! !PUBLIC DERIVED TYPES:
-type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
+type,extends(type_base_model), public  :: type_ecosmo_coccolith
 !     Variable identifiers
-    type (type_state_variable_id)         :: id_no3, id_nh4, id_pho,  id_oxy
+    type (type_state_variable_id)         :: id_no3, id_nh4, id_pho, id_oxy
     type (type_state_variable_id)         :: id_c, id_chl
     type (type_state_variable_id)         :: id_alk, id_dic
-    type (type_state_variable_id)         :: id_det, id_dom
+    type (type_state_variable_id)         :: id_det, id_dom, id_opal , id_caco3
 
     type (type_dependency_id)             :: id_temp, id_salt, id_par, id_parmean
 
-    type (type_diagnostic_variable_id)    :: id_primprod, id_netpp 
+    type (type_diagnostic_variable_id)    :: id_primprod, id_netpp , id_pcal
     type (type_horizontal_dependency_id)  :: id_sfpar, id_meansfpar
 
     real(rk) :: MAXchl2nP, MINchl2nP 
-    real(rk) :: alfaP 
+    real(rk) :: alfaP !, aa
     real(rk) :: mu, m, m2, Km2
     real(rk) :: rNH4, rNO3, rPO4
     real(rk) :: Psink
     real(rk) :: psi
     real(rk) :: exulim, qexcr
+    real(rk) :: calcR
 
 !    logical  :: turn_on_additional_diagnostics ! activates additional diagnostics for model debugging
 
@@ -42,19 +43,20 @@ type,extends(type_base_model), public  :: type_ecosmo_phytoplankton
     procedure :: initialize
     procedure :: do
 
-end type type_ecosmo_phytoplankton
+end type type_ecosmo_coccolith
 
 
 type (type_bulk_standard_variable), parameter :: total_chlorophyll = type_bulk_standard_variable(name='total_chlorophyll',units='mg/m^3',aggregate_variable=.true.)
 type (type_bulk_standard_variable), parameter :: total_gpp = type_bulk_standard_variable(name='total_gpp',units='mgC/m3/d',aggregate_variable=.true.)
 type (type_bulk_standard_variable), parameter :: total_npp = type_bulk_standard_variable(name='total_npp',units='mgC/m3/d',aggregate_variable=.true.)
+type (type_bulk_standard_variable), parameter :: calcite_production = type_bulk_standard_variable(name='calcite_production', units='mmolN m-3 s-1', aggregate_variable=.true.)
 type (type_bulk_standard_variable), parameter :: pbiomass = type_bulk_standard_variable(name='pbiomass',units='mg/m^3',aggregate_variable=.true.)
 
 contains
 subroutine initialize(self,configunit)
     !
     ! !INPUT PARAMETERS:
-    class (type_ecosmo_phytoplankton), intent(inout),target  :: self
+    class (type_ecosmo_coccolith), intent(inout),target  :: self
     integer,  intent(in) :: configunit
  
     !
@@ -112,11 +114,16 @@ subroutine initialize(self,configunit)
         call self%register_state_dependency(self%id_alk, 'alk','mmol m-3','alkalinity budget')
     end if
 
+    call self%get_parameter( self%calcR, 'calcR', '-', 'Maximum calcification to organic carbon production RCaCO3', default=0.4_rk)
+    call self%register_diagnostic_variable(self%id_pcal, 'pcal', 'mmolN m-3 s-1', 'calcite production')
+    call self%add_to_aggregate_variable(calcite_production, self%id_pcal)
+    call self%register_state_dependency(self%id_caco3, 'caco3', 'mmol/m3', 'calcite')
+        
 end subroutine initialize
 
 subroutine do(self,_ARGUMENTS_DO_)
 
-    class (type_ecosmo_phytoplankton),intent(in) :: self
+    class (type_ecosmo_coccolith),intent(in) :: self
     _DECLARE_ARGUMENTS_DO_
     real(rk) :: no3,nh4,pho,oxy
     real(rk) :: det, dom
@@ -128,12 +135,14 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: Tdep ! temperature effect on P growth
     real(rk) :: blight !, aa
     real(rk) :: chl2c
-    real(rk) :: rhs, rhs_amm, rhs_nit, rhs_oxy 
+    real(rk) :: rhs, rhs_amm, rhs_nit, rhs_oxy , rhs_caco3
     real(rk) :: bioom6
     real(rk) :: dic,alk
     real(rk) :: N_or_Si_uptake, P_uptake
     real(rk) :: mean_surface_par, mean_par
     real(rk) :: exu
+
+    real(rk) :: Rstar
 
     _LOOP_BEGIN_
 
@@ -207,9 +216,17 @@ subroutine do(self,_ARGUMENTS_DO_)
         bioom6 = 0.0_rk
     end if
 
+    ! Calcite production. self%caco3_flux_multiplier ensures production only for coccoliths 
+    Rstar = self%calcR * limit * max(0.0001,temp/(2.0 + temp)) &
+                 * max( 1.0, 0.5 * c * Cmg_to_Cmmol * Cmmol_to_Nmmol ) 
+
+    rhs_caco3 = Rstar * ( (self%mu * limit - 0.5 * (self%m + highMort) * p_loss) * c )
+    _ADD_SOURCE_(self%id_caco3, rhs_caco3)
+    _SET_DIAGNOSTIC_(self%id_pcal, Rstar)
+
     if (couple_co2) then
-        _ADD_SOURCE_(self%id_dic, -prod * Cmg_to_Cmmol)
-        rhs = (rhs_amm - rhs_nit) * Cmg_to_Cmmol * Cmmol_to_Nmmol - 0.5_rk * rhs_oxy * (1._rk-bioom6)
+        _ADD_SOURCE_(self%id_dic, -prod * Cmg_to_Cmmol - rhs_caco3)
+        rhs = (rhs_amm - rhs_nit) * Cmg_to_Cmmol * Cmmol_to_Nmmol - 0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3
         _ADD_SOURCE_(self%id_alk, rhs )
     end if
 

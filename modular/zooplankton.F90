@@ -24,10 +24,10 @@ type,extends(type_base_model), public  :: type_ecosmo_zooplankton
 
     type (type_state_variable_id)         :: id_c, id_chl
     type (type_state_variable_id)         :: id_alk, id_dic
-    type (type_state_variable_id)         :: id_nh4, id_no3, id_sil, id_pho, id_det, id_dom, id_oxy, id_opal !, id_caco3
+    type (type_state_variable_id)         :: id_nh4, id_no3, id_sil, id_pho, id_det, id_dom, id_oxy, id_opal , id_caco3
 
     type (type_dependency_id)             :: id_temp, id_salt, id_par
-!    type (type_dependency_id)         :: id_pcal
+    type (type_dependency_id)         :: id_pcal
 
     type (type_diagnostic_variable_id)    :: id_secprod
 
@@ -45,7 +45,7 @@ type,extends(type_base_model), public  :: type_ecosmo_zooplankton
     real(rk) :: exc
     real(rk) :: gammaZ, gammaP, gammaD
     real(rk) :: KsLightDep, scaleRg
-    real(rk),allocatable :: pref(:), opal_multiplier(:), grz(:), gammaPrey(:) !, caco3_multiplier(:)
+    real(rk),allocatable :: pref(:), opal_multiplier(:), grz(:), gammaPrey(:), caco3_multiplier(:)
     real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
     !real(rk),allocatable :: caco3_loss(:)
     logical, allocatable :: has_chl(:)
@@ -76,7 +76,7 @@ subroutine initialize(self,configunit)
     logical           :: prey_is_zoo
     logical           :: prey_is_detritus
     logical           :: prey_is_diatom
-    logical           :: prey_is_coccolith
+    logical           :: prey_is_calcifier
     real(rk)          :: z_loss
     real(rk)          :: scaleRg, KsLightDep
 
@@ -85,7 +85,7 @@ subroutine initialize(self,configunit)
     !
     !  Veli Çağlar Yumruktepe:
     !       XXX
-    call self%get_parameter( self%is_migrator, 'is_migrator', '', 'perform_diel_vertical_migration', default=.false. )
+!    call self%get_parameter( self%is_migrator, 'is_migrator', '', 'perform_diel_vertical_migration', default=.false. )
     call self%get_parameter( self%swimspd, 'swimspd', 'm/day', 'zooplankton swimming speed', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%grzP, 'grzP', '1/day', 'Grazing rate on P', scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%grzZ, 'grzZ', '1/day', 'Grazing rate on Z', default=0.50_rk,  scale_factor=1.0_rk/sedy0)
@@ -112,7 +112,7 @@ subroutine initialize(self,configunit)
     allocate(self%has_chl(self%nprey))
     allocate(self%opal_multiplier(self%nprey))
     ! if (use_calcifier) then
-    !     allocate(self%caco3_multiplier(self%nprey))
+    allocate(self%caco3_multiplier(self%nprey))
     ! end if
     do iprey=1,self%nprey
         write (index,'(i0)') iprey
@@ -129,7 +129,7 @@ subroutine initialize(self,configunit)
         call self%get_parameter(prey_is_detritus,'prey'//trim(index)//'_is_detritus','','prey type '//trim(index)//' is detritus',default=.false.)
         call self%get_parameter(prey_is_diatom,'prey'//trim(index)//'_is_diatom','','prey type '//trim(index)//' is diatom',default=.false.)
         ! if (use_calcifier) then
-        !     call self%get_parameter(prey_is_coccolith,'prey'//trim(index)//'_is_coccolith','','prey type '//trim(index)//' is coccolith',default=.false.)
+        call self%get_parameter(prey_is_calcifier,'prey'//trim(index)//'_is_calcifier','','prey type '//trim(index)//' is calcifier',default=.false.)
         ! end if
         self%has_chl(iprey) = .false. ! below, phyto will get .true. if use_chl 
 
@@ -159,6 +159,13 @@ subroutine initialize(self,configunit)
            self%has_chl(iprey) = .true.
         end if   
 
+        self%caco3_multiplier(iprey) = 0.0_rk
+        if (prey_is_calcifier) then ! default is false. Assign true for calcifier in fabm.yaml
+            self%caco3_multiplier(iprey) = 1.0_rk
+            call self%register_dependency(self%id_pcal,'pcal','-','calcite production')
+            call self%register_state_dependency(self%id_caco3, 'caco3','mmol m-3','calcite')
+        end if
+
         self%opal_multiplier(iprey) = 0.0_rk
         if (prey_is_diatom) then ! default is false. Assign true for diatoms in fabm.yaml
             self%opal_multiplier(iprey) = 1.0_rk
@@ -166,7 +173,7 @@ subroutine initialize(self,configunit)
         ! if (use_calcifier) then
         !     self%caco3_multiplier(iprey) = 0.0_rk
         !     self%caco3_multiplier(iprey) = 1.0_rk
-        !     call self%register_dependency(self%id_pcal,'pcal','-','calcite production')
+        !call self%register_dependency(self%id_pcal,'pcal','-','calcite production')
         ! end if
     end do
     ! Get prey-specific coupling links.
@@ -213,11 +220,11 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: c, oxy !, caco3
     real(rk),dimension(self%nprey) :: preyc, preychl, bio_loss !, caco3_loss
     real(rk),dimension(self%nprey) :: food_each, uptake_each, uptake_rate_each, pref
-    real(rk) :: uptake, uptake_rate, food, rhs, rhs_oxy, rhs_dic, z_loss, rhs_opal !, rhs_caco3
+    real(rk) :: uptake, uptake_rate, food, rhs, rhs_oxy, rhs_dic, z_loss, rhs_opal , rhs_caco3
     real(rk) :: assimilated_uptake_rate, unassimilated_uptake_rate
     real(rk) :: bioom6, rhs_amm
     real(rk) :: highMort
-    !real(rk) :: pcal
+    real(rk) :: pcal
     ! DVM stuff
     real(rk) :: latitude, yearday, declination, day_length
     real, parameter :: pi = 3.14159265358979323846
@@ -272,6 +279,9 @@ subroutine do(self,_ARGUMENTS_DO_)
         !end if
         bio_loss(iprey) = max(sign(-1.0_rk,preyc(iprey)-self%bio_loss_limit(iprey)),0.0_rk)
         !caco3_loss(iprey) = max(sign(-1.0_rk,caco3-0.01),0.0_rk)
+        if (self%caco3_multiplier(iprey) == 1.0_rk) then
+           _GET_(self%id_pcal,pcal)
+        end if 
     end do
     z_loss = max(sign(-1.0_rk,c - prevent_loss_Z),0.0_rk) ! self loss switch 
 
@@ -301,7 +311,7 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     ! Apply/Calculate prey specific rates.
     rhs_opal = 0.0_rk
-    !rhs_caco3 = 0.0_rk
+    rhs_caco3 = 0.0_rk
     do iprey=1,self%nprey
 
 !        rhs = -uptake_rate_each(iprey) * preyc(iprey) * pref(iprey) * bio_loss(iprey)
@@ -314,7 +324,7 @@ subroutine do(self,_ARGUMENTS_DO_)
 
         rhs_opal = rhs_opal + self%opal_multiplier(iprey) * uptake_rate_each(iprey) * c
         ! if (use_calcifier) then
-        !     rhs_caco3 = rhs_caco3 + pcal * (-0.5 * (self%caco3_multiplier(iprey) * caco3_loss(iprey) * uptake_rate_each(iprey) * c) )
+        rhs_caco3 = rhs_caco3 + pcal * (-0.5 * (self%caco3_multiplier(iprey) * uptake_rate_each(iprey) * c) )
         ! end if
     end do
 
@@ -346,17 +356,19 @@ subroutine do(self,_ARGUMENTS_DO_)
     rhs_oxy = -bioom6 * 6.625 * ( z_loss * self%exc * c )  * Cmg_to_Cmmol * Cmmol_to_Nmmol 
     _ADD_SOURCE_(self%id_oxy, rhs_oxy)
 
+    _ADD_SOURCE_(self%id_caco3, rhs_caco3 )
+
     if (couple_co2) then
         ! if (use_calcifier) then
         !     _ADD_SOURCE_(self%id_caco3, rhs_caco3 )
         ! end if
-        !rhs_dic = z_loss * self%exc * c * Cmg_to_Cmmol  - rhs_caco3
-        rhs_dic = z_loss * self%exc * c * Cmg_to_Cmmol  
+        rhs_dic = z_loss * self%exc * c * Cmg_to_Cmmol  - rhs_caco3
+        !rhs_dic = z_loss * self%exc * c * Cmg_to_Cmmol  
         
         _ADD_SOURCE_(self%id_dic, rhs_dic )
          rhs_amm = (z_loss * self%exc * c) * Cmg_to_Cmmol * Cmmol_to_Nmmol ! rhs_amm - rhs_nit where rhs_nit = 0 in this part of code
-        !_ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3)
-        _ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) )
+        _ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3)
+        !_ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) )
     end if
 
     _LOOP_END_
