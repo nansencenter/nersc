@@ -135,7 +135,7 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: Tdep ! temperature effect on P growth
     real(rk) :: blight !, aa
     real(rk) :: chl2c
-    real(rk) :: rhs, rhs_amm, rhs_nit, rhs_oxy , rhs_caco3
+    real(rk) :: rhs, rhs_amm, rhs_nit, rhs_oxy
     real(rk) :: bioom6
     real(rk) :: dic,alk
     real(rk) :: N_or_Si_uptake, P_uptake

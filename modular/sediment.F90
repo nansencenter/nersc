@@ -65,11 +65,11 @@ subroutine initialize(self,configunit)
     if (couple_co2) then
         call self%register_state_dependency(self%id_dic, 'dic','mmol m-3','dic budget')
         call self%register_state_dependency(self%id_alk, 'alk','mmol m-3','alkalinity budget')
-        !if (use_calcifier) then
+        if (.false.) then
             call self%register_state_variable( self%id_sed4,     'sed4',    'mmol/m2',    'sediment calcite',         minimum=0.0_rk , &
             initial_value=1e-2_rk * Cmmol_to_Cmg )
             call self%register_state_dependency(self%id_caco3, 'caco3', 'mmol/m3', 'calcite') 
-        !end if
+        end if
     end if
     call self%register_dependency(self%id_tbs,standard_variables%bottom_stress)
     call self%register_dependency(self%id_thickness, standard_variables%cell_thickness)
@@ -220,7 +220,7 @@ subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
     !---------------------------------------------------------------
     !---- sediment CaCO3
 
-    !if (use_calcifier) then
+    if (.false.) then
         caco3_sedimentation = Rds*caco3
         if (caco3_sedimentation * long_time_step_for_assumed_sedimentation_flux > caco3 * thickness) caco3_sedimentation = 0.0_rk
 
@@ -230,7 +230,7 @@ subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
             -( 2.0E-3 * self%burialRt * sed4 ) * sed4
         _SET_BOTTOM_ODE_(self%id_sed4, rhs_sed4)
         _SET_BOTTOM_EXCHANGE_(self%id_caco3, Rsd * sed4 - caco3_sedimentation)
-    !end if 
+    end if 
 
     if (couple_co2) then
         _SET_BOTTOM_EXCHANGE_(self%id_dic, Cmg_to_Cmmol * (Rsdenit+2*Rsa)*sed1)

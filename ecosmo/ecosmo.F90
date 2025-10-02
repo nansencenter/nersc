@@ -220,7 +220,7 @@
    call self%get_parameter( self%Km2Zl, 'Km2Zl',         'mgC/m**3',      'half saturation for Zl higher mortality rate', default=150.0_rk)
    call self%get_parameter( self%BioC(16), 'mZs',         '1/day',      'Zs mortality rate',               default=0.20_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%m2Zs, 'm2Zs',         '1/day',      'Zs higher mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
-   call self%get_parameter( self%Km2Ps, 'Km2Zs',         'mgC/m**3',      'half saturation for Zs higher mortality rate', default=150.0_rk)
+   call self%get_parameter( self%Km2Zs, 'Km2Zs',         'mgC/m**3',      'half saturation for Zs higher mortality rate', default=150.0_rk)
    call self%get_parameter( self%BioC(17), 'excZl',       '1/day',      'Zl excretion rate',               default=0.06_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(18), 'excZs',       '1/day',      'Zs excretion rate',               default=0.08_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(19), 'gammaZlp',    '1',          'Zl assim. eff. on plankton',      default=0.75_rk)
@@ -1072,7 +1072,7 @@ end subroutine initialize
    end if
       
 !   _SET_DIAGNOSTIC_(self%id_primprod, Prod_Dia_Fla + Prod_Cocco + Prod_BG + self%BioC(28)*bg*Bg_fix )      
-   _SET_DIAGNOSTIC_(self%id_primprod, sumgpp )
+   _SET_DIAGNOSTIC_(self%id_primprod, sumgpp * sedy0)
    _SET_DIAGNOSTIC_(self%id_netpp, sumnetpp )
    _SET_DIAGNOSTIC_(self%id_secprod, Zl_prod*mesozoo + Zs_prod*microzoo)
 

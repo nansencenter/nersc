@@ -45,6 +45,7 @@ type,extends(type_base_model), public  :: type_ecosmo_zooplankton
     real(rk) :: exc
     real(rk) :: gammaZ, gammaP, gammaD
     real(rk) :: KsLightDep, scaleRg
+    real(rk) :: zpr
     real(rk),allocatable :: pref(:), opal_multiplier(:), grz(:), gammaPrey(:), caco3_multiplier(:)
     real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
     !real(rk),allocatable :: caco3_loss(:)
@@ -101,6 +102,7 @@ subroutine initialize(self,configunit)
     call self%get_parameter( self%Zsink, 'Zsink', 'm/day', 'zooplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
     call self%get_parameter( self%scaleRg,  'scaleRg',   'the minimum value for RgZl scaling for faster grazing while DVM active',  default=1.0_rk) ! default is off (full RgZl) ! remember that smaller Rg means faster feeding 
+    call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
 
 !    call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Zsink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
     call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
@@ -253,7 +255,7 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     day_length = 24.0 / pi * acos(inside_acos)
     day_length = max(0.0_rk, min(24.0_rk, day_length))
-    if (self%is_migrator) then
+!    if (self%is_migrator) then
         scale_Rg = max( self%scaleRg , min(1.0_rk,(24.0_rk - day_length)/24.0_rk) )
         ! light dependent mortality multiplier
         if (self%KsLightDep < 1.0e-18_rk) then 
@@ -261,10 +263,10 @@ subroutine do(self,_ARGUMENTS_DO_)
         else
             light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreases
         end if
-    else
-        scale_Rg = 1.0_rk
-        light_dep_mort = 1.0_rk ! maximum mortality everywhere for non-migrators
-    end if
+!    else
+!        scale_Rg = 1.0_rk
+!        light_dep_mort = 1.0_rk ! maximum mortality everywhere for non-migrators
+!    end if
     ! --------------
 
     !_GET_(self%id_pcal,pcal)
@@ -335,7 +337,7 @@ subroutine do(self,_ARGUMENTS_DO_)
     highMort = self%m2 * ( c/(c + self%Km2) ) * light_dep_mort
 
 !    rhs = ( self%gamma * uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc ) ) * c 
-    rhs = ( assimilated_uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc ) ) * c
+    rhs = ( assimilated_uptake_rate - z_loss * ( self%m * max(0.5_rk,light_dep_mort) + highMort + self%exc  + self%zpr) ) * c
     _ADD_SOURCE_(self%id_c, rhs)
     ! nutrients
     rhs = z_loss * self%exc * c
