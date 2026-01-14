@@ -49,8 +49,8 @@
       type (type_diagnostic_variable_id)    :: id_nlim, id_plim, id_slim, id_llim
       type (type_horizontal_diagnostic_variable_id)    :: id_tbsout
       ! community sinking id's
-      type (type_state_variable_id)         :: id_dsnk, id_dsnf ! the variable that advects detritus sinking speeds
-      type (type_diagnostic_variable_id)    :: id_snkspd, id_snkspdf ! simulated average sinking speed
+      type (type_state_variable_id)         :: id_dsnk  ! the variable that advects detritus sinking speeds
+      type (type_diagnostic_variable_id)    :: id_snkspd ! simulated average sinking speed
       ! coccolithophores + caco3 
       type (type_state_variable_id)         :: id_cocco, id_caco3
       type (type_dependency_id)             :: id_Om_cal
@@ -117,7 +117,7 @@
       logical  :: use_chl_in_PI_curve ! activated chl dependent light limitation (temporary now - will be permanent)
       logical  :: turn_on_additional_diagnostics ! activates additional diagnostics for model debugging
       logical  :: use_coccolithophores ! activates coccolithophores 
-      logical  :: couple_ice ! activates ice algae 
+      logical  :: couple_ice ! activates ice-algae 
       
       contains
 
@@ -255,7 +255,7 @@
    call self%get_parameter( self%BioC(43),  'sinkOPAL',   'm/day',      'OPAL sinking rate',               default=5.0_rk,   scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(44),  'sinkBG',     'm/day',      'BG sinking rate',                 default=-1.0_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(45),  'sinkDia',    'm/day',      'Diatom sinking rate',             default=0.0_rk,   scale_factor=1.0_rk/sedy0)
-   call self%get_parameter( self%sinkIdet,  'sinkIdet',   'm/day',      'Ice algae sinking rate',          default=5.0_rk,   scale_factor=1.0_rk/sedy0)
+   call self%get_parameter( self%sinkIdet,  'sinkIdet',   'm/day',      'Ice algae sinking rate',          default=50.0_rk,   scale_factor=1.0_rk/sedy0)
    !  growth fractions
    call self%get_parameter( self%prefZsPs,  'prefZsPs',   '-',          'Grazing preference Zs on Ps',     default=0.70_rk)
    call self%get_parameter( self%prefZsPl,  'prefZsPl',   '-',          'Grazing preference Zs on Pl',     default=0.25_rk)
@@ -385,8 +385,10 @@
                                       initial_value=1e-6_rk*redf(1)*redf(6) )
    call self%register_state_variable( self%id_det,      'det',     'mgC/m3',    'detritus',                  minimum=1.0e-10_rk,         &
                                       initial_value=2.0_rk*redf(1)*redf(6)  )
-   call self%register_state_variable( self%id_detf,      'detf',   'mgC/m3',    'fast sinking detritus',     minimum=0.0_rk,  &
+   if (self%couple_ice) then
+     call self%register_state_variable( self%id_detf,      'detf',   'mgC/m3',    'fast sinking detritus',     minimum=0.0_rk,  &
                                       initial_value=0.0_rk*redf(1)*redf(6)  )
+   end if
    call self%register_state_variable( self%id_opa,      'opa',     'mgC/m3',    'opal',                      minimum=0.0_rk,  &
                                       initial_value=2.0_rk*redf(3)*redf(6) )
    call self%register_state_variable( self%id_dom,      'dom',     'mgC/m3',    'labile dissolved om',       minimum=0.0_rk , &
@@ -401,8 +403,6 @@
    if (self%use_community_sinking) then
       call self%register_state_variable( self%id_dsnk,      'dsnk',    'mgC/m3', 'detritus sinking speed advector', minimum=1.0e-10_rk/sedy0 , &
                initial_value=2.0_rk*redf(1)*redf(6)*self%BioC(23))
-      call self%register_state_variable( self%id_dsnf,      'dsnf',    'mgC/m3', 'fast sinking detritus speed advector', minimum=0.0_rk, vertical_movement=self%sinkIdet , &
-              initial_value=2.0_rk*redf(1)*redf(6)*self%sinkIdet)
    end if
    ! Register diagnostic variables
    call self%register_diagnostic_variable(self%id_primprod,'primprod','mgC/m**3/s', &
@@ -430,8 +430,6 @@
          if (self%use_community_sinking) then
             call self%register_diagnostic_variable(self%id_snkspd,'snkspd','m/d', &
                'daily-mean detritus sinking speed', output=output_time_step_averaged)
-            call self%register_diagnostic_variable(self%id_snkspdf,'snkspdf','m/d', &
-               'daily-mean fast detritus sinking speed', output=output_time_step_averaged)
          end if
          if (self%use_chl) then
           call self%register_diagnostic_variable(self%id_c2chl_fla,'c2chl_fla','mgC/mgCHL', &
@@ -473,9 +471,6 @@
    call self%register_dependency(self%id_lat,standard_variables%latitude)
    call self%register_dependency(self%id_yearday,standard_variables%number_of_days_since_start_of_the_year)
 
-!   call self%register_dependency(self%id_h,       'icethickness', 'm',    'ice thickness')
-!   call self%register_dependency(self%id_hs,      'snowthickness','m',    'snow thickness')
-   
 
    return
 
@@ -511,7 +506,7 @@ end subroutine initialize
    real(rk) :: Fs,Fl,ZlonPs,ZlonPl,ZsonD,ZsonDf,ZlonD,ZlonDf,ZsonPs,ZsonPl,ZlonZs
    real(rk) :: up_no3,up_nh4,up_n,up_pho,up_sil
    real(rk) :: bioom1,bioom2,bioom3,bioom4,bioom5,bioom6,bioom7,bioom8,Onitr
-   real(rk) :: rhs,dxxdet,dxxdetf,sinkdxxdet,sinkdxxdetf
+   real(rk) :: rhs,dxxdet,dxxdetf,sinkdxxdet
    real(rk) :: Zl_prod, Zs_prod
    real(rk) :: mean_par, mean_surface_par
    real(rk) :: fla_loss=1.0_rk
@@ -548,7 +543,7 @@ end subroutine initialize
 !
 
 ! local variables for community sinking   
-   real(rk) :: dsnk,dnsf,mean_snkspd,mean_snkspdf
+   real(rk) :: dsnk,mean_snkspd
 !
 
 ! local variables for community specific P-I curves
@@ -813,19 +808,15 @@ end subroutine initialize
    ! EXPERIMENT
    ZsonPs = fla_loss * self%BioC(12) * self%prefZsPs * fla**2/(self%BioC(14)**2 + Fs**2)
    ZsonPl = dia_loss * self%BioC(12) * self%prefZsPl * dia**2/(self%BioC(14)**2 + Fs**2)
+   ZsonD  =            self%BioC(12) * self%prefZsD * det**2/(self%BioC(14)**2 + Fs**2)
    if (self%couple_ice) then
-     ZsonD  =            self%BioC(12) * self%prefZsD * det**2/(self%BioC(14)**2 + Fs**2)
      ZsonDf =            self%BioC(12) * self%prefZsD * detf**2/(self%BioC(14)**2 + Fs**2)
-   else
-     ZsonD  =            self%BioC(12) * self%prefZsD * det**2/(self%BioC(14)**2 + Fs**2)
    end if
    ZlonPs = fla_loss * self%BioC(11) * self%prefZlPs * fla**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    ZlonPl = dia_loss * self%BioC(11) * self%prefZlPl * dia**2/((self%RgZl*scale_Rg)**2 + Fl**2)
+   ZlonD =             self%BioC(11) * self%prefZlD * det**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    if (self%couple_ice) then
-     ZlonD =             self%BioC(11) * self%prefZlD * det**2/((self%RgZl*scale_Rg)**2 + Fl**2)
      ZlonDf=             self%BioC(11) * self%prefZlD * detf**2/((self%RgZl*scale_Rg)**2 + Fl**2)
-   else
-     ZlonD =             self%BioC(11) * self%prefZlD * det**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    end if
    ZlonZs = mic_loss * self%BioC(13) * self%prefZlZs * microzoo**2/((self%RgZl*scale_Rg)**2 + Fl**2)
    ! EXPERIMENT
@@ -935,31 +926,21 @@ end subroutine initialize
    _SET_ODE_(self%id_mesozoo, rhs)
 
    ! detritus
-   if (self%couple_ice) then
-     dxxdetf = (  (1.0_rk-self%BioC(21))*ZsonDf) * microzoo &
-                + (1.0_rk-self%BioC(21))*ZlonDf) * mesozoo    ) 
-   end if
-     dxxdet = (  ((1.0_rk-self%BioC(20))*(ZsonPs + ZsonPl + ZsonBg + ZsonCocco) &
-                + (1.0_rk-self%BioC(21))*ZsonD) * microzoo &
-                + ((1.0_rk-self%BioC(19))*(ZlonPs + ZlonPl + ZlonBg + ZlonZs + ZlonCocco) &
-                + (1.0_rk-self%BioC(21))*ZlonD) * mesozoo &
-                + (self%BioC(16) + highMortZs) * microzoo * mic_loss &
-                + (self%BioC(15)*max(0.5_rk,light_dep_mort) + highMortZl) * mesozoo * mes_loss &
-                + (self%BioC(10) + highMortPs) * fla * fla_loss &
-                + (self%BioC(9) + highMortPl)  * dia * dia_loss)
+   dxxdet = (  ((1.0_rk-self%BioC(20))*(ZsonPs + ZsonPl + ZsonBg + ZsonCocco) &
+              + (1.0_rk-self%BioC(21))*ZsonD) * microzoo &
+              + ((1.0_rk-self%BioC(19))*(ZlonPs + ZlonPl + ZlonBg + ZlonZs + ZlonCocco) &
+              + (1.0_rk-self%BioC(21))*ZlonD) * mesozoo &
+              + (self%BioC(16) + highMortZs) * microzoo * mic_loss &
+              + (self%BioC(15)*max(0.5_rk,light_dep_mort) + highMortZl) * mesozoo * mes_loss &
+              + (self%BioC(10) + highMortPs) * fla * fla_loss &
+              + (self%BioC(9) + highMortPl)  * dia * dia_loss)
+
    if (self%use_cyanos) then
        dxxdet = dxxdet + (self%BioC(32) * bg * bg_loss )
    end if
+
    if (self%use_coccolithophores) then
        dxxdet = dxxdet + (self%mortCocco + highMortCocco) * cocco * cocco_loss  
-   end if
-
-   if (self%couple_ice) then
-     rhs = (1.0_rk-self%frr) * dxxdetf &
-           - ZsonDf * microzoo &
-           - ZlonDf * mesozoo &
-           - frem * detf
-     _SET_ODE_(self%id_detf, rhs)
    end if
 
    rhs = (1.0_rk-self%frr) * dxxdet &
@@ -967,16 +948,24 @@ end subroutine initialize
          - ZlonD * mesozoo &
          - frem * det
    _SET_ODE_(self%id_det, rhs)
+   
+   if (self%couple_ice) then
+     dxxdetf = ( ((1.0_rk-self%BioC(21))*ZsonDf) * microzoo &
+                + ((1.0_rk-self%BioC(21))*ZlonDf) * mesozoo    ) 
+
+     rhs = (1.0_rk-self%frr) * dxxdetf &
+           - ZsonDf * microzoo &
+           - ZlonDf * mesozoo &
+           - frem * detf
+     _SET_ODE_(self%id_detf, rhs)
+   end if
+
    if (self%use_community_sinking) then
     ! community dependent sinking rate
     ! 
     ! dsnk/det is the calculated (and applied) detritus sinking speed
     ! assumptions: unassimilated food uses detritus sinking rates from the prey,
     ! not the predator.
-     if (self%couple_ice .AND. detf>0.0) then 
-       sinkdxxdetf = (  ((1.0_rk-self%BioC(21))* ZsonDf * dsnf/detf) * microzoo &
-                +   ((1.0_rk-self%BioC(21))* ZlonDf * dsnf/detf) * mesozoo)
-     end if 
        
       sinkdxxdet = (  ((1.0_rk-self%BioC(20))*(ZsonPs * self%sinkFlaD + ZsonPl * self%sinkDiaD + ZsonBg * self%sinkBgD + ZsonCocco * self%sinkCoccoD) &
                + (1.0_rk-self%BioC(21)) * ZsonD * dsnk/det) * microzoo &
@@ -993,13 +982,6 @@ end subroutine initialize
           sinkdxxdet = sinkdxxdet + (self%mortCocco + highMortCocco) * cocco * cocco_loss * self%sinkCoccoD 
       end if
 
-     if (self%couple_ice .AND. detf>0.0) then
-       rhs = (1.0_rk-self%frr) * sinkdxxdetf &
-           + ( - ZsonDf * microzoo - ZlonDf * mesozoo ) * dsnf/detf &
-               - frem * dsnf
-       _SET_ODE_(self%id_dsnf, rhs)
-     end if 
-        
       rhs = (1.0_rk-self%frr) * sinkdxxdet &
             - ZsonD * microzoo * dsnk/det &
             - ZlonD * mesozoo * dsnk/det &
@@ -1207,9 +1189,6 @@ end subroutine initialize
     end if
 
     if (self%use_community_sinking) then
-       if (self%couple_ice) then
-         _SET_DIAGNOSTIC_(self%id_snkspdf,dsnf/detf*sedy0) ! set the output to be (m d-1)
-       end if
        _SET_DIAGNOSTIC_(self%id_snkspd,dsnk/det*sedy0) ! set the output to be (m d-1)
     end if
 
@@ -1323,11 +1302,11 @@ end subroutine initialize
    real(rk) :: rhs, flux, alk_flux
    real(rk) :: bioom1, bioom2, bioom3, bioom4, bioom5, bioom6, bioom7, bioom8
    real(rk) :: thickness
-   real(rk) :: opal_sedimentation, det_sedimentation, caco3_sedimentation, dsnk_sedimentation, dsnf_sedimentation
+   real(rk) :: opal_sedimentation, det_sedimentation, caco3_sedimentation, dsnk_sedimentation
    real(rk) :: long_time_step_for_assumed_sedimentation_flux = 1200.0_rk
    real(rk) :: time_step
    ! add community sinking local variables
-   real(rk) :: dsnk, dsnf
+   real(rk) :: dsnk
    ! add coccolithophores + caco3 variables
    real(rk) :: caco3, sed4
 !   real(rk) :: caco3_loss=1.0_rk
@@ -1349,9 +1328,6 @@ end subroutine initialize
    _GET_(self%id_opa,opa)
    _GET_(self%id_no3,no3)
    if (self%use_community_sinking) then
-     if (self%couple_ice) then
-       _GET_(self%id_dsnf,dsnf)
-     end if
      _GET_(self%id_dsnk,dsnk)
    end if
    if (self%use_coccolithophores) then
@@ -1420,7 +1396,7 @@ end subroutine initialize
 
         !--- sediment 1 total sediment biomass and nitrogen pool
         if (self%couple_ice) then
-          det_sedimentation = Rds*(det + def)
+          det_sedimentation = Rds*(det + detf)
         else
           det_sedimentation = Rds*det
         end if
@@ -1434,16 +1410,11 @@ end subroutine initialize
 
         ! community sinking variable exchange
         if (self%use_community_sinking) then
-          if (self%couple_ice .AND. detf>0.0) then
-            dsnf_sedimentation = Rds*dsnf
-            if (dsnf_sedimentation * long_time_step_for_assumed_sedimentation_flux > dsnf * thickness) dsnf_sedimentation = 0.0_rk
-            _SET_BOTTOM_EXCHANGE_(self%id_dsnf, - dsnf_sedimentation)
-          end if
           dsnk_sedimentation = Rds*dsnk
           if (dsnk_sedimentation * long_time_step_for_assumed_sedimentation_flux > dsnk * thickness) dsnk_sedimentation = 0.0_rk
           ! _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - Rds*det*dsnk/det)
           _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd*sed1*dsnk/det - dsnk_sedimentation)
-         end if
+        end if
 
         ! oxygen
         flux = -(BioOM6*6.625_rk*2.0_rk*Rsa*sed1 &
@@ -1602,17 +1573,10 @@ end subroutine initialize
     class (type_nersc_ecosmo_operational),intent(in) :: self
     _DECLARE_ARGUMENTS_GET_VERTICAL_MOVEMENT_
 
-    real(rk) :: det, detf, dsnk, dsnf, meanspd, minspd, maxspd
+    real(rk) :: det, detf, dsnk, meanspd, minspd, maxspd !,dsnf
 
     _LOOP_BEGIN_
        if (self%use_community_sinking) then
-         if (self%couple_ice .AND. detf>0.0) then
-           _GET_(self%id_detf, detf)
-           _GET_(self%id_dsnf, dsnf)
-         
-           _SET_VERTICAL_MOVEMENT_(self%id_detf,-self%sinkIdet)
-           _SET_VERTICAL_MOVEMENT_(self%id_dsnf,-self%sinkIdet)
-         end if 
          _GET_(self%id_det, det)
          _GET_(self%id_dsnk, dsnk)
 
@@ -1649,7 +1613,7 @@ end subroutine initialize
    end subroutine get_vertical_movement
 
    subroutine check_state(self,_ARGUMENTS_CHECK_STATE_)
-      class (type_nersc_ecosmo), intent(in) :: self
+      class (type_nersc_ecosmo_operational), intent(in) :: self
       _DECLARE_ARGUMENTS_CHECK_STATE_
 
       real(rk) :: minspd,maxspd,meanspd
