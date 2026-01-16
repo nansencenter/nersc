@@ -25,6 +25,8 @@ contains
       use dvm_upper_lower_boundaries_simple
       use dvm_weight_distribution
       use dvm_move
+      use fabm_nersc_icealgae_G
+      use nersc_light
       ! Add new models here
 
       class (type_factory),intent(in) :: self
@@ -40,6 +42,8 @@ contains
          case ('dvm_upper_lower_boundaries_simple'); allocate(type_upper_lower_boundaries_simple::model)
          case ('dvm_weight_distribution'); allocate(type_weight_distribution::model)
          case ('dvm_move'); allocate(type_move::model)
+         case ('icealgae_G'); allocate(type_nersc_icealgae_G::model)
+         case ('light'); allocate(type_nersc_light::model)
          ! Add new models here
       end select
 

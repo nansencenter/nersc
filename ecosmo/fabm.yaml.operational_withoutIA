@@ -2,7 +2,7 @@ instances:
   lgt:
     #coupling:
     #  surface_attenuation_coef_IA: IA_Iatt
-    model: gotm/light
+    model: nersc/light
     parameters:
       A: 0.58
       g1: 0.35

@@ -2,7 +2,7 @@ instances:
   lgt:
     coupling:
       surface_attenuation_coef_IA: IA_Iatt
-    model: gotm/light
+    model: nersc/light
     parameters:
       A: 0.58
       g1: 0.35
@@ -187,7 +187,7 @@ instances:
       Wdet   : ECO_det
       Wmicro : ECO_microzoo
       Wmeso  : ECO_mesozoo
-    model: hzg/icealgea_G 
+    model: nersc/icealgae_G 
     initialization:
       Ino3        : 0.0 #1.65       # nitrate   (mmolN/m**2)
       Inh4        : 0.0 #0.015      # ammonium  (mmolN/m**2)
