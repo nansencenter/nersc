@@ -53,6 +53,7 @@
       type (type_horizontal_dependency_id)           :: id_h, id_hs, id_i_con
       type (type_horizontal_dependency_id)           :: id_dh_growth
 
+
 !     Model parameters
       real(rk) :: muIA
       real(rk) :: TctrlIA
@@ -119,8 +120,9 @@
    real(rk) :: baclin
    !namelist /CORE/dt
 !-----------------------------------------------------------------------
-   !type (type_surface_standard_variable),parameter :: surface_attenuation_coef_of_photosynthetic_radiative_flux = type_surface_standard_variable(name='surface_attenuation_coef_of_photosynthetic_radiative_flux',units='-',aggregate_variable=.true.)
-
+!   type (type_surface_standard_variable),parameter :: surface_attenuation_coef_of_photosynthetic_radiative_flux = type_surface_standard_variable(name='surface_attenuation_coef_of_photosynthetic_radiative_flux',units='-',aggregate_variable=.true.)
+   type (type_surface_standard_variable), parameter :: ice_thickness = type_surface_standard_variable(name= "ice_thickness", units="m")
+   type (type_surface_standard_variable), parameter :: dh_growth = type_surface_standard_variable(name= "dh_growth", units="m s-1")
    contains
 
 !-----------------------------------------------------------------------
@@ -274,9 +276,9 @@
    call self%register_dependency(self%id_Fsw, standard_variables%surface_downwelling_shortwave_flux)
    call self%register_dependency(self%id_thick_cell, standard_variables%cell_thickness)
    call self%register_dependency(self%id_sal, standard_variables%practical_salinity)
-   call self%register_dependency(self%id_h, standard_variables%ice_thickness)
+   call self%register_dependency(self%id_h, ice_thickness)
    call self%register_dependency(self%id_i_con, standard_variables%ice_area_fraction)
-   call self%register_dependency(self%id_dh_growth, standard_variables%dh_growth)
+   call self%register_dependency(self%id_dh_growth, dh_growth)
    !call self%register_dependency(standard_variable(name='time_step', units='s')
 
    !call self%register_dependency(self%id_hs, standard_variables%snow_thickness)

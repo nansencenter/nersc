@@ -180,6 +180,16 @@
 !-----------------------------------------------------------------------
 !BOC
 
+   ! add switches
+   call self%get_parameter( self%use_cyanos,     'use_cyanos', '', 'switch cyanobacteria', default=.true.)
+   call self%get_parameter( self%couple_co2,     'couple_co2', '', 'switch coupling to carbonate module', default=.false.)
+   call self%get_parameter( self%use_chl,     'use_chl', '', 'switch chlorophyll/c dynamics', default=.true.)
+   call self%get_parameter( self%not_0d,     'not_0d', '', 'do not run the model in a 0D box', default=.true.)
+   call self%get_parameter( self%use_community_sinking, 'use_community_sinking','','community composition dependent sinking rates', default=.false.)
+   call self%get_parameter( self%use_chl_in_PI_curve, 'use_chl_in_PI_curve','','activated chl dependent light limitation',default=.false.)
+   call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)
+   call self%get_parameter( self%use_coccolithophores,     'use_coccolithophores', '', 'switch coccolithophores', default=.false.)
+
    call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
    call self%get_parameter(self%frr, 'frr', '-', 'fraction of dissolved from det.', default=0.4_rk)
    call self%get_parameter(self%nfixation_minimum_daily_par, 'nfixation_minimum_daily_par', 'nfixation minimum daily par', default=40.0_rk)
@@ -199,6 +209,7 @@
    else
       call self%get_parameter( self%BioC(5) , 'Exphy',       'm**2/mmolN', 'phyto self-shading',              default=0.04_rk, scale_factor=1.0_rk/(redf(1)*redf(6)) )
    end if
+   write(*,*) 'EXTINCTION', self%use_chl, self%BioC(5)
    call self%get_parameter( self%extdet , 'Exdet',       'm**2/molC', 'detritus self-shading',         default=0.0_rk, scale_factor=1.0_rk/1000.0_rk )
    call self%get_parameter( self%extdom , 'Exdom',       'm**2/molC', 'dom self-shading',              default=0.0_rk, scale_factor=1.0_rk/1000.0_rk )
    call self%get_parameter( self%BioC(6) , 'rNH4',        'mmolN/m**3', 'NH4 half saturation',             default=0.20_rk,  scale_factor=redf(1)*redf(6))
@@ -299,15 +310,6 @@
    call self%get_parameter( self%sinkBgD,   'sinkBgD',     'm/day', 'Detritus originating from cyanob. sinking rate',      default=5.0_rk, scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%sinkCoccoD,  'sinkCoccoD',   'm/day', 'Detritus originating from coccolith. sinking rate',  default=5.0_rk, scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%SiUptLim,  'SiUptLim',   'mgC/m3', 'Stop Si uptake below this concentration',  default=80.0_rk)
-   ! add switches
-   call self%get_parameter( self%use_cyanos,     'use_cyanos', '', 'switch cyanobacteria', default=.true.)
-   call self%get_parameter( self%couple_co2,     'couple_co2', '', 'switch coupling to carbonate module', default=.false.)
-   call self%get_parameter( self%use_chl,     'use_chl', '', 'switch chlorophyll/c dynamics', default=.true.)
-   call self%get_parameter( self%not_0d,     'not_0d', '', 'do not run the model in a 0D box', default=.true.)
-   call self%get_parameter( self%use_community_sinking, 'use_community_sinking','','community composition dependent sinking rates', default=.false.)   
-   call self%get_parameter( self%use_chl_in_PI_curve, 'use_chl_in_PI_curve','','activated chl dependent light limitation',default=.false.)
-   call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)
-   call self%get_parameter( self%use_coccolithophores,     'use_coccolithophores', '', 'switch coccolithophores', default=.false.)
    ! 2025 additions from EU NECCTON project WP5
    ! Default values for the NECCTON additions are set to 0.0 in order to be compatible with other projects.
    ! You can modify these using fabm.yaml file
