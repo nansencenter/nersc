@@ -60,6 +60,7 @@
       !type (type_global_dependency_id)             :: id_time_step
       type (type_horizontal_dependency_id) :: id_lat
       type (type_global_dependency_id)     :: id_yearday
+      type (type_horizontal_dependency_id) :: id_icearea
 
 !     Model parameters
       real(rk) :: BioC(45)
@@ -185,6 +186,18 @@
 !-----------------------------------------------------------------------
 !BOC
 
+   ! add switches
+   call self%get_parameter( self%use_cyanos,     'use_cyanos', '', 'switch cyanobacteria', default=.true.)
+   call self%get_parameter( self%couple_co2,     'couple_co2', '', 'switch coupling to carbonate module', default=.false.)
+   call self%get_parameter( self%couple_ice,'couple_ice', '', 'switch coupling to ice biogeochemistry module', default=.false.)
+   call self%get_parameter( self%use_chl,     'use_chl', '', 'switch chlorophyll/c dynamics', default=.true.)
+   call self%get_parameter( self%not_0d,     'not_0d', '', 'do not run the model in a 0D box', default=.true.)
+   call self%get_parameter( self%use_community_sinking, 'use_community_sinking','','community composition dependent sinking rates', default=.false.)
+   call self%get_parameter( self%use_chl_in_PI_curve, 'use_chl_in_PI_curve','','activated chl dependent light limitation',default=.false.)
+   call self%get_parameter( self%turn_on_additional_diagnostics, 'turn_on_additional_diagnostics','','activates additional diagnostics for model debugging',default=.false.)
+   call self%get_parameter( self%use_coccolithophores,     'use_coccolithophores', '', 'switch coccolithophores', default=.false.)
+   !
+
    call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
    call self%get_parameter(self%frr, 'frr', '-', 'fraction of dissolved from det.', default=0.4_rk)
    call self%get_parameter(self%nfixation_minimum_daily_par, 'nfixation_minimum_daily_par', 'nfixation minimum daily par', default=40.0_rk)
@@ -198,7 +211,7 @@
    call self%get_parameter( self%BioC(1) , 'muPl',        '1/day',      'max growth rate for Pl',          default=1.30_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(2) , 'muPs',        '1/day',      'max growth rate for Ps',          default=1.10_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(3) , 'aa',          'm**2/W',     'photosynthesis ef-cy',            default=0.04_rk)
-   call self%get_parameter( self%BioC(4) , 'EXw',         '1/m',        'light extinction',                default=0.041_rk)
+   call self%get_parameter( self%BioC(4) , 'EXw',         '1/m',        'light extinction',                default=0.0_rk) ! we use light model g2 in fabm.yaml instead 
    if (self%use_chl) then
       call self%get_parameter( self%BioC(5) , 'Exphy',       'm**2/mgCHL', 'phyto self-shading',              default=0.04_rk )
    else
@@ -470,6 +483,7 @@
    end if
    call self%register_dependency(self%id_lat,standard_variables%latitude)
    call self%register_dependency(self%id_yearday,standard_variables%number_of_days_since_start_of_the_year)
+   call self%register_dependency(self%id_icearea,standard_variables%ice_area_fraction)
 
 
    return
@@ -618,6 +632,11 @@ end subroutine initialize
    _GET_SURFACE_(self%id_lat,latitude) ! degN
    _GET_GLOBAL_(self%id_yearday,yearday) !decimal day of the year
 
+
+   ! THIS BLOCK CONCERNS ACTIVATING DIEL VERTICAL MIGRATION
+   ! BY DEFAULT, BELOW IS CONFIGURED TO BE INEFFECTIVE
+   ! DVM IS ACTIVATED IN YAML FILE, see parameter declarations above for appropriate DVM activation
+   ! for scaleRg, KsLightDep 
    latitude = latitude * pi / 180.0
    declination = 23.44 * pi / 180.0 * sin(2.0 * pi / 365.0 * (yearday - 81.0))
    inside_acos = max( -1.0_rk, min( 1.0_rk,-tan(latitude) * tan(declination) ) )
@@ -625,6 +644,16 @@ end subroutine initialize
    day_length = 24.0 / pi * acos(inside_acos)
    day_length = max(0.0_rk, min(24.0_rk, day_length))
    scale_Rg = max( self%scaleRg , min(1.0_rk,(24.0_rk - day_length)/24.0_rk) )
+
+   ! light dependent mortality multiplier
+   if (self%KsLightDep < 1.0e-18_rk) then
+      light_dep_mort = 1.0_rk ! mesozooplankton mortality is not dependent on light
+   else
+      light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreasesi
+      !scale_Rg = 1.0 / scale_rg ! at low light, feeding slows down to compensate faster feeding in light 
+   end if
+ 
+   ! ----------------
 
    ! CAGLAR
    ! checks - whether the biomass of plankton is below a predefined threshold,
@@ -864,12 +893,6 @@ end subroutine initialize
      end if
    end if
 
-   ! light dependent mortality multiplier
-   if (self%KsLightDep < 1.0e-18_rk) then 
-      light_dep_mort = 1.0_rk ! mesozooplankton mortality is not dependent on light
-   else
-      light_dep_mort = par / (par + self%KsLightDep) ! assumes at low light, mortality decreases
-   end if
 
 ! reaction rates
    highMortPs = self%m2Ps * ( fla/(fla + self%Km2Ps) )  
@@ -1223,6 +1246,7 @@ end subroutine initialize
    real(rk) :: o2flux, T, tr, S, o2sat, oxy
    real(rk) :: no3flux, phoflux
    real(rk) :: pho,par,bg,blight,tbg,up_pho,prod
+   real(rk) :: icearea
 !EOP
 !-----------------------------------------------------------------------
 !BOC
@@ -1233,6 +1257,8 @@ end subroutine initialize
    _GET_(self%id_oxy,oxy)
    _GET_(self%id_par,par)
    _GET_(self%id_pho,pho)
+   _GET_SURFACE_(self%id_icearea,icearea)
+
    if (self%use_cyanos) then
      _GET_(self%id_bg,bg)
    else
@@ -1249,7 +1275,7 @@ end subroutine initialize
        - S*(0.017674_rk-10.754_rk*tr+2140.7_rk*tr**2)  )
 
 !   o2flux = 5._rk/secs_pr_day * (o2sat - oxy)
-   o2flux = 1._rk/secs_pr_day * (o2sat - oxy)
+   o2flux = 1._rk/secs_pr_day * (o2sat - oxy) * ( 1.0_rk - icearea )
 
    _SET_SURFACE_EXCHANGE_(self%id_oxy,o2flux)
 
@@ -1530,7 +1556,7 @@ end subroutine initialize
       cocco = 0.0_rk
    end if 
 
-   my_extinction = self%BioC(4)
+   my_extinction = 0.0 ! obsolote (light.F90 handles water background attenuation) : self%BioC(4)
    if (self%use_chl) then
      _GET_(self%id_diachl, diachl)
      _GET_(self%id_flachl, flachl)
