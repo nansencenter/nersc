@@ -96,85 +96,85 @@ contains
             upper_presence = 0.0_rk
             lower_presence = 0.0_rk
 
-!            if (nhours < 0.05_rk) then
-!                upper_presence = 0.0_rk
-!                lower_presence = 0.0_rk
-!                
-!                    if (depth < 240.0_rk) then
-!                        upper_presence = 1.0_rk
-!                    else
-!                        upper_presence = 0.0_rk
-!                    end if
-!                
-!                ! Set diagnostic based on presence
-!                if (upper_presence + lower_presence > 0.9_rk .and. oxygen >= self%oxygen_threshold) then
-!                    _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
-!                else
-!                    _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
-!                end if
-!                
-!            else
-!
-!                ! CASE 2
-!                if (nhours > 23.95_rk) then
-!                    ! there is an upper and a lower light boundary
-!                    ! first calculate possibilities above the lower boundary
-!
-!                    ! Initialize presence variables
-!                    upper_presence = 0.0_rk
-!                    lower_presence = 0.0_rk
-!                    
-!                    ! Lowerlight Rules
-!                            ! if (parmeanlog > -15.0_rk) then
-!                            !     upper_presence = 1.0_rk
-!                            ! else
-!                            !     upper_presence = 0.0_rk
-!                            ! end if
-!
-!
-!
-!                    ! Lower light rules
-!                    if (parmean0log <= 0.67_rk) then
-!                        if (parmeanlog > -15.84_rk) then
-!                            upper_presence = 1.0_rk
-!                        else
-!                            upper_presence = 0.0_rk
-!                        end if
-!                    else
-!                        if (parmeanlog > -11.01_rk) then
-!                            upper_presence = 1.0_rk
-!                        else
-!                            upper_presence = 0.0_rk
-!                        end if
-!                    end if
-!
-!                    ! Upperlight Rules
-!                    if (parmean0log <= 0.65_rk) then
-!                        if (parlog < -8.0_rk) then
-!                            lower_presence = 1.0_rk
-!                        else
-!                            lower_presence = 0.0_rk
-!                        end if
-!                    else
-!                        if (parlog < -4.0_rk) then
-!                            lower_presence = 1.0_rk
-!                        else
-!                            lower_presence = 0.0_rk
-!                        end if
-!                    end if
-!
-!
-!                    ! Set diagnostic based on presence
-!                    if (upper_presence + lower_presence > 1.0_rk) then
-!                        _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
-!                    else
-!                        if (upper_presence > 0.9_rk .and. depth >= max(topo - 20.0_rk, 0.0_rk) .and. oxygen >= self%oxygen_threshold) then 
-!                            _SET_DIAGNOSTIC_(self%id_present,1.0_rk)
-!                        else 
-!                            _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
-!                        end if
-!                    end if
-!                else
+           if (nhours < 0.05_rk) then
+               upper_presence = 0.0_rk
+               lower_presence = 0.0_rk
+               
+                   if (depth < 240.0_rk) then
+                       upper_presence = 1.0_rk
+                   else
+                       upper_presence = 0.0_rk
+                   end if
+               
+               ! Set diagnostic based on presence
+               if (upper_presence + lower_presence > 0.9_rk .and. oxygen >= self%oxygen_threshold) then
+                   _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
+               else
+                   _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
+               end if
+               
+           else
+
+               ! CASE 2
+               if (nhours > 23.95_rk) then
+                   ! there is an upper and a lower light boundary
+                   ! first calculate possibilities above the lower boundary
+
+                   ! Initialize presence variables
+                   upper_presence = 0.0_rk
+                   lower_presence = 0.0_rk
+                   
+                   ! Lowerlight Rules
+                           ! if (parmeanlog > -15.0_rk) then
+                           !     upper_presence = 1.0_rk
+                           ! else
+                           !     upper_presence = 0.0_rk
+                           ! end if
+
+
+
+                   ! Lower light rules
+                   if (par0log <= 1.44_rk) then
+                       if (parlog > -7.97_rk) then
+                           upper_presence = 1.0_rk
+                       else
+                           upper_presence = 0.0_rk
+                       end if
+                   else
+                       if (parlog > -5.63_rk) then
+                           upper_presence = 1.0_rk
+                       else
+                           upper_presence = 0.0_rk
+                       end if
+                   end if
+
+                   ! Upperlight Rules
+                   if (par0log <= 1.14_rk) then
+                       if (parlog < -4.05_rk) then
+                           lower_presence = 1.0_rk
+                       else
+                           lower_presence = 0.0_rk
+                       end if
+                   else
+                       if (parlog < -2.13_rk) then
+                           lower_presence = 1.0_rk
+                       else
+                           lower_presence = 0.0_rk
+                       end if
+                   end if
+
+
+                   ! Set diagnostic based on presence
+                   if (upper_presence + lower_presence > 1.0_rk) then
+                       _SET_DIAGNOSTIC_(self%id_present, 1.0_rk)
+                   else
+                       if (upper_presence > 0.9_rk .and. depth >= max(topo - 20.0_rk, 0.0_rk) .and. oxygen >= self%oxygen_threshold) then 
+                           _SET_DIAGNOSTIC_(self%id_present,1.0_rk)
+                       else 
+                           _SET_DIAGNOSTIC_(self%id_present, 0.0_rk)
+                       end if
+                   end if
+               else
 
                     ! CASE 3
                     if (par0log > self%night_threshold) then
@@ -187,7 +187,7 @@ contains
                         
                         ! Lowerlight Rules
                         !if (parmeanlog > self%lower_boundary) then
-                        if (depth > self%depth_threshold) then
+                        if (depth <= self%depth_threshold) then
                             upper_presence = 1.0_rk
                         else
                             upper_presence = 0.0_rk
@@ -220,7 +220,7 @@ contains
                         
                         ! Calculate possibilities above the lower boundary
                         !if (parmeanlog > self%lower_boundary_night) then
-                        if (depth > self%depth_threshold) then
+                        if (depth <= self%depth_threshold) then
                             upper_presence = 1.0_rk
                         else
                             upper_presence = 0.0_rk
@@ -234,13 +234,13 @@ contains
                         end if
                         
                     end if
-!                end if
+                end if
 
-            !end if
+            end if
 
             ! This should ensure that each point at least receives the 0.0_rk value
             if (upper_presence + lower_presence < 0.9_rk) then
-                if (depth > self%depth_threshold) then
+                if (depth <= self%depth_threshold) then
                             upper_presence = 1.0_rk
                 else
                    _SET_DIAGNOSTIC_(self%id_present,0.0_rk) 

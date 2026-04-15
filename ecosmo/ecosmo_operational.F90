@@ -377,7 +377,7 @@
        call self%add_to_aggregate_variable(total_chlorophyll, self%id_cocco, scale_factor=1.0_rk/60.0_rk)
      end if
      call self%register_state_variable( self%id_caco3,       'caco3',      'mmol/m3',    'calcite',             minimum=1.0e-14_rk,      &
-                                      initial_value=1e-3_rk )
+                                      initial_value=1e-3_rk,maximum=1000.0_rk )
      call self%register_state_variable( self%id_sed4,     'sed4',    'mmol/m2',    'sediment calcite',         minimum=0.0_rk , &
                                       initial_value=1e-2_rk*redf(6),maximum=10000.0_rk )      
    end if
@@ -403,7 +403,7 @@
                                       initial_value=0.0_rk*redf(1)*redf(6)  )
    end if
    call self%register_state_variable( self%id_opa,      'opa',     'mgC/m3',    'opal',                      minimum=0.0_rk,  &
-                                      initial_value=2.0_rk*redf(3)*redf(6) )
+                                      initial_value=2.0_rk*redf(3)*redf(6),maximum=1000.0_rk )
    call self%register_state_variable( self%id_dom,      'dom',     'mgC/m3',    'labile dissolved om',       minimum=0.0_rk , &
                                       initial_value=3.0_rk*redf(1)*redf(6)   )
    call self%register_state_variable( self%id_sed1,     'sed1',    'mgC/m2',    'sediment detritus',         minimum=0.0_rk , &
@@ -1329,7 +1329,7 @@ end subroutine initialize
    real(rk) :: bioom1, bioom2, bioom3, bioom4, bioom5, bioom6, bioom7, bioom8
    real(rk) :: thickness
    real(rk) :: opal_sedimentation, det_sedimentation, caco3_sedimentation, dsnk_sedimentation
-   real(rk) :: long_time_step_for_assumed_sedimentation_flux = 1200.0_rk
+   real(rk) :: long_time_step_for_assumed_sedimentation_flux = 200.0_rk !1200.0_rk
    real(rk) :: time_step
    ! add community sinking local variables
    real(rk) :: dsnk
@@ -1397,10 +1397,11 @@ end subroutine initialize
 
 !----citical bottom shear stress
         if (tbs.ge.self%BioC(34)) then
-          Rsd=min(self%BioC(35), self%BioC(35) * (tbs-0.1)**2 * 100.) ! sets to max=self%BioC(35) when tbs=0.2,
-                 ! sets to max=self%BioC(35) when tbs=0.2,
-                 ! else rapid increase to max when tbs=0.1
-                 ! it assumes BioC(34) = 0.1 in the fabm.yaml file
+          !Rsd=min(self%BioC(35), self%BioC(35) * (tbs-0.1)**2 * 100.) ! sets to max=self%BioC(35) when tbs=0.2,
+          !       ! sets to max=self%BioC(35) when tbs=0.2,
+          !       ! else rapid increase to max when tbs=0.1
+          !       ! it assumes BioC(34) = 0.1 in the fabm.yaml file
+          Rsd=min(self%BioC(35), self%BioC(35) * tbs**2 / 4.0_rk) ! At tbs >= 2, resuspension is maximum at BioC(35)
           Rds=0.0_rk
         else if (tbs.lt.self%BioC(34)) then
           Rsd=0.0_rk
@@ -1503,7 +1504,7 @@ end subroutine initialize
         end if
 
         ! sediment opal(Si)
-        opal_sedimentation = 2.0*Rds*opa
+        opal_sedimentation = 1.0*Rds*opa ! changed from factor 2.0 to 1.0. Testing stability.
         if (opal_sedimentation * long_time_step_for_assumed_sedimentation_flux > opa * thickness) opal_sedimentation = 0.0_rk
 !!        _SET_BOTTOM_ODE_(self%id_sed2, Rds*opa - Rsd*sed2 - self%BioC(42)*sed2 - ( self%BioC(37)*1000.*(sed2**3/(sed2**3 + 1E+12)) )*sed2)
 
@@ -1620,10 +1621,10 @@ end subroutine initialize
 
          _SET_VERTICAL_MOVEMENT_(self%id_det,-meanspd)
          _SET_VERTICAL_MOVEMENT_(self%id_dsnk,-meanspd)
-         _SET_VERTICAL_MOVEMENT_(self%id_opa,-meanspd)
+         _SET_VERTICAL_MOVEMENT_(self%id_opa,-self%BioC(43))
          if (self%use_coccolithophores) then
 !          _SET_VERTICAL_MOVEMENT_(self%id_caco3,-self%sinkCoccoD) ! set CaCO3 sinking to Coccolith detritus sinking
-          _SET_VERTICAL_MOVEMENT_(self%id_caco3,-meanspd)
+          _SET_VERTICAL_MOVEMENT_(self%id_caco3,-self%BioC(43))
          end if 
         else
           if (self%couple_ice) then
