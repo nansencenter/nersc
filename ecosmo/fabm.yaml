@@ -1,10 +1,11 @@
 instances:
-  light:
-    model: gotm/light
+  lgt:
+    model: nersc/light
     parameters:
       A: 0.58
       g1: 0.35
       g2: 23.0
+      couple_ice : false
   CO2:
     initialization:
       TA: 2300.0
@@ -47,6 +48,7 @@ instances:
       use_community_sinking: true
       use_cyanos: false
       couple_co2: true
+      couple_ice : false
 
       # phyto growth rates
       muPl: 0.62    # max growth rate for Pl        (1/d)
@@ -130,6 +132,8 @@ instances:
       sinkMesD: 7.96        # Detritus sinking rate, origin Zl             (m/d)
       sinkMicD: 0.987       # Detritus sinking rate, origin Zs             (m/d)
       sinkCoccoD: 5.73      # Detritus sinking rate, origin coccoliths     (m/d)
+      # takes effect if couple_ice: true
+      sinkIdet   : 50.0     # Ice-algae detritus sinking rate  (m/day)
 
       # recycling, nutrients related parameters
       excZl: 0.078          # Zl excretion rate                                       (1/d)
@@ -154,7 +158,7 @@ instances:
       surface_deposition_no3: 0.0
       surface_deposition_pho: 0.0
       surface_deposition_sil: 0.0
-    
+
       # parameters that are not in default use by NERSC, and will only matter if swithes are set accordingly
       # if use_cyanos = true
       MAXchl2nBG: 2.94    # maximum Chl to N ratio Cyanobacteria  (BG)     (mgChl/mmolN)
@@ -167,3 +171,4 @@ instances:
       nfixation_minimum_daily_par: 35.0
       # if use_chl_in_PI_curve = false
       aa : 0.012          # photosynthesis ef-cy            (m**2/W)  
+
