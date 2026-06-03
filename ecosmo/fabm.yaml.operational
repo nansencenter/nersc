@@ -161,7 +161,13 @@ instances:
       surface_deposition_no3: 0.0
       surface_deposition_pho: 0.0
       surface_deposition_sil: 0.0
-    
+
+      # NECCTON project parameters that are off by default. Now active:
+      exulim: 0.3
+      qexcr: 0.05
+      KsLightDep: 0.001
+      scaleRg: 0.353
+
       # parameters that are not in default use by NERSC, and will only matter if swithes are set accordingly
       # if use_cyanos = true
       MAXchl2nBG: 2.94    # maximum Chl to N ratio Cyanobacteria  (BG)     (mgChl/mmolN)
@@ -174,7 +180,44 @@ instances:
       nfixation_minimum_daily_par: 35.0
       # if use_chl_in_PI_curve = false
       aa : 0.012          # photosynthesis ef-cy            (m**2/W)  
- 
+
+  migrator:
+    long_name: migrating_zooplankton
+    model: nersc/dvm_conservative_migrator
+    initialization:
+      c: 1 # mgC/m3        
+
+  dg:
+    coupling:
+      prey1: ECO/dia
+      prey2: ECO/fla
+      prey3: ECO/microzoo
+      prey4: ECO/det
+      prey5: ECO/ccl
+    model: nersc/dvm_get_dependencies
+    parameters:
+      nprey: 5
+
+  db:
+    coupling:
+      daylength: dg/daylength
+      migrator_food: dg/migrator_food
+      oxygen: ECO/oxy
+    model: nersc/dvm_upper_lower_boundaries_operational
+    parameters:
+      night_threshold: -3.0
+      oxygen_threshold: 62.53
+      upper_boundary: -5.0
+
+  dw:
+    coupling:
+      migrator_food: dg/migrator_food
+      present: db/migrator_presence
+      target: ECO/mesozoo
+    model: nersc/dvm_weight_distribution
+    parameters:
+      ratioMig: 0.5 
+
   IA:
     coupling:
       Wno3   : ECO_no3
