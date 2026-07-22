@@ -27,7 +27,17 @@ contains
       use dvm_move
       use fabm_nersc_icealgae_G
       use nersc_light
-      ! Add new models here
+      ! Add modular model components here
+      use ecosmo_shared
+      use ecosmo_nutrient
+      use ecosmo_oxygen
+      use ecosmo_organic_matter
+      use ecosmo_opal
+      use ecosmo_phy
+      use ecosmo_zooplankton
+      use ecosmo_caco3
+      use ecosmo_sediment
+      ! ADD OTHER MODELS (e.g. development versions) HERE
 
       class (type_factory),intent(in) :: self
       character(*),        intent(in) :: name
@@ -44,6 +54,16 @@ contains
          case ('dvm_move'); allocate(type_move::model)
          case ('icealgae_G'); allocate(type_nersc_icealgae_G::model)
          case ('light'); allocate(type_nersc_light::model)
+         ! Add modular model components here
+         case ('ecosmo_shared');     allocate(type_ecosmo_shared::model)
+         case ('ecosmo_nutrient');     allocate(type_ecosmo_nutrient::model)
+         case ('ecosmo_oxygen');     allocate(type_ecosmo_oxygen::model)
+         case ('ecosmo_organic_matter');     allocate(type_ecosmo_organic_matter::model)
+         case ('ecosmo_opal');     allocate(type_ecosmo_opal::model)
+         case ('ecosmo_phy');     allocate(type_ecosmo_phy::model)
+         case ('ecosmo_zooplankton');     allocate(type_ecosmo_zooplankton::model)
+         case ('ecosmo_caco3');     allocate(type_ecosmo_caco3::model)
+         case ('ecosmo_sediment');     allocate(type_ecosmo_sediment::model)
          ! Add new models here
       end select
 
