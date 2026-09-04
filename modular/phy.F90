@@ -27,7 +27,11 @@
 ! The user needs to set an appropriate q10 value in fabm.yaml.
 !
 ! VCY - 22/07/2026
-! Chl to biomass ratio was N-based. Modified the parameter names and values to be Chl to C ratio. 
+! Chl to biomass ratio was N-based. Modified the parameter names and values to be Chl to C ratio.
+!
+! VCY - 03/09/2026
+! Added a different temperature dependency on calcifier growth rate after Fielding et al. 2013 (https://doi.org/10.4319%2Flo.2013.58.2.0663).
+! It assumes much lower growth rates in cold temperatures.
 ! ------------------------------- !
 
 module ecosmo_phy
@@ -226,13 +230,18 @@ contains
 
         ! temperature dependence
         if (use_temp_dependency_phy) then
-            ! the model assumes q10 is for every 10 degrees Celsius increase in temperature
-            ! the reference temperature is 0 degree-C. Adjust your self%mu for this reference temperature
-            Tdep = self%q10**(temp/10.0_rk)
+            if (self%is_calcifier) then
+                ! after Fielding et al. 2013 (https://doi.org/10.4319%2Flo.2013.58.2.0663)
+                Tdep = 0.1419 * temp**0.8151 ! this assumes very low growth rates for cold temperatures unlike the other ones
+            else
+                ! the model assumes q10 is for every 10 degrees Celsius increase in temperature
+                ! the reference temperature is 0 degree-C. Adjust your self%mu for this reference temperature
+                Tdep = self%q10**(temp/10.0_rk)
+            end if
         else
             Tdep = 1.0_rk
         end if
-        mu_act = self%mu * Tdep
+        mu_act = self%mu * Tdep ! actual max growth rate after temperature adjustment
 
         ! light limitation factor
         if (use_geider_PI_curve) then
@@ -251,7 +260,7 @@ contains
         end if
 
         ! calculate exudation. Default: exulim=0, qexcr=0, thus ignored
-        exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) !* p_loss (to self: check why ploss is commented out)
+        exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) !* p_loss (VCY: why is ploss commented out here?)
 
         ! chlorophyll to carbon ratio
         chl2c = self%MAXchl2cP * max(0.01,limit) * mu_act * c / max(self%alfaP * par * chl, 1.0e-10_rk)
