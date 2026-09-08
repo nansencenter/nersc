@@ -47,7 +47,6 @@ module ecosmo_shared
 
    real(rk):: frr = 0.4_rk                    ! default fraction of organic carbon from detritus remineralization
    logical  :: couple_co2 = .false.           ! default no CO2 coupling
-   real(rk) :: light_att_chl = 0.04_rk        ! default chl self-shading 
    real(rk) :: prevent_loss_P = 0.5           ! default minimum biomass where loss terms are turned off for phytoplankton
    real(rk) :: prevent_loss_Z = 0.05          ! default minimum biomass where loss terms are turned off for zooplankton
    logical  :: model_has_silicifier = .false. ! if diatoms are included in the model, set true in fabm.yaml

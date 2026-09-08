@@ -39,6 +39,9 @@
 !    - Removed artificial 0.01 minimum for Chl:C ratio
 !    - Refined Geider Chl:C synthesis ratio calculation
 !    - Added "use_geider_PI_curve" to control method choice
+!
+!    Moved light_att_chl from shared.F90 to here. The following study suggests phyto type specification.
+!    Johnsen, G., & Sakshaug, E. (2007). Biooptical characteristics of PSII and PSI in 33 species (13 pigment groups) of marine phytoplankton, and the relevance for pulse‐amplitude‐modulated and fast‐repetition‐rate fluorometry. Journal of Phycology, 43(6), 1236-1251.
 ! ------------------------------- !
 
 module ecosmo_phy
@@ -67,6 +70,7 @@ module ecosmo_phy
         real(rk) :: exulim, qexcr
         real(rk) :: SiUptLim
         real(rk) :: q10
+        real(rk) :: light_att_chl
         real(rk) :: calcR
         real(rk) :: Rain0, Kcalom, dissCmax, ndissC
 
@@ -98,6 +102,7 @@ contains
         call self%get_parameter( self%m2 ,          'm2',           '1/day',      'quadratic mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
         call self%get_parameter( self%Km2,          'Km2',          'mgC/m**3',   'quadratic loss half-sat.', default=300.0_rk)
         call self%get_parameter( self%Psink,        'Psink',        'm/day',      'phytoplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
+        call self%get_parameter( self%light_att_chl,'light_att_chl','m2/mgChl',   'chlorophyll specific light attenuation coefficient', default=0.04_rk)
         call self%get_parameter( self%MINchl2cP,    'MINchl2cP',    'mgChl/mgC',  'minimum Chl to C ratio P', default=0.0063_rk)
         call self%get_parameter( self%MAXchl2cP,    'MAXchl2cP',    'mgChl/mgC',  'maximum Chl to C ratio P', default=0.0370_rk)    
         call self%get_parameter( self%alfaP,        'alfaP',        'mgC m2/(mgChl day W)**-1', 'initial slope P-I curve P', default=4.225_rk, scale_factor=1.0_rk/sedy0)
@@ -117,7 +122,7 @@ contains
         ! Register aggregate variables
         ! light attenuation due to chlorophyll
         call self%add_to_aggregate_variable(standard_variables%attenuation_coefficient_of_photosynthetic_radiative_flux, &
-                                            self%id_chl,scale_factor=light_att_chl,include_background=.true.)
+                                            self%id_chl,scale_factor=self%light_att_chl,include_background=.true.)
 
         ! total chlorophyll for output
         call self%add_to_aggregate_variable(type_bulk_standard_variable(name='Chla',units='mg/m^3',aggregate_variable=.true.), &
