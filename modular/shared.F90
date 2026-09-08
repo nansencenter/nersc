@@ -58,6 +58,7 @@ module ecosmo_shared
    logical  :: use_temp_dependency_phy = .false.        ! optional temperature dependency for P production, if false, Tdep = 1.0_rk, see phy.F90
    logical  :: use_geider_PI_curve     = .false.        ! optional use of Geider's PI curve for P photoproduction, if false, use Yumruktepe et al., 2023 ECOSMO II(CHL) formulation
    logical  :: use_prey_switching      = .false.        ! optional adaptive prey switching (Murdoch 1969)
+   logical  :: use_slp_egest_paradigm  = .false.        ! optional explicit sloppy feeding and waste routing (Steinberg & Landry 2017)
    logical  :: use_bact_nutrient_limitation = .false.   ! optional implicit bacterial nutrient limitation on remineralization
 
    type,extends(type_base_model), public  :: type_ecosmo_shared

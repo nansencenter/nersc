@@ -23,6 +23,16 @@
 ! VCY - 08/09/2026
 ! Added optional parameter for zooplankton prey switching when set to True in fabm.yaml 
 ! (default: false). This allows the model to use the original prey preference-based grazing formulation.
+!
+! Added optional parameters related to sloppy feeding and waste routing paradigm, 
+! This is an alternative to "classical" ECOSMO grazing scheme.
+! By default, the model uses the "classical" scheme and this is deactivated in fabm.yaml
+! To activate, set use_slp_egest_paradigm = .true. in fabm.yaml
+! This approach follows the work of Steinberg & Landry, 2017 (https://doi.org/10.1146/annurev-marine-010814-015924) on sloppy feeding and waste routing
+! The key difference is how egestion and exretion are handled and how they contribute to the carbon cycle.
+! In the "classical" scheme, egestion and excretion are treated as separate processes that contribute to the carbon cycle.
+! In this new scheme, egestion and excretion are treated as separate processes that contribute to the carbon cycle.
+! The implementation is taking from PJW approach used in niva-ecosmo
 ! ------------------------------- !
 
 module ecosmo_zooplankton
@@ -52,7 +62,8 @@ module ecosmo_zooplankton
         real(rk) :: exc
         real(rk) :: KsLightDep, scaleRg
 !        real(rk) :: zpr
-        real(rk),allocatable :: pref(:), grz(:), gamma(:)
+        real(rk),allocatable :: pref(:), grz(:), gamma(:), fGslp(:)
+        real(rk) :: fAexc, fexcdom, freges, frmort
         real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
 
         logical, allocatable :: has_chl(:)
@@ -90,6 +101,10 @@ contains
         call self%get_parameter( self%Zsink, 'Zsink', 'm/day', 'zooplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
         call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
         call self%get_parameter( self%scaleRg,  'scaleRg',   'the minimum value for RgZl scaling for faster grazing while DVM active',  default=1.0_rk) ! default is off (full RgZl) ! remember that smaller Rg means faster feeding 
+        call self%get_parameter( self%fAexc,   'fAexc',   '-', 'Fraction of absorbed food excreted (Active Respiration)', default=0.0_rk)
+        call self%get_parameter( self%fexcdom, 'fexcdom', '-', 'Fraction of excretion routed to DOM', default=0.0_rk)
+        call self%get_parameter( self%freges,  'freges',  '-', 'Fraction of egestion routed to DOM', default=0.0_rk)
+        call self%get_parameter( self%frmort,  'frmort',  '-', 'Fraction of mortality routed to DOM', default=frr)
 !        call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
 
         call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Zsink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
@@ -107,11 +122,13 @@ contains
         allocate(self%bio_loss_limit(self%nprey))
         allocate(self%grz(self%nprey))
         allocate(self%gamma(self%nprey))
+        allocate(self%fGslp(self%nprey))
         do iprey=1,self%nprey
             write (index,'(i0)') iprey
             call self%get_parameter(self%pref(iprey),'pref'//trim(index),'-','relative affinity for prey type '//trim(index))
             call self%get_parameter(self%grz(iprey),'grz'//trim(index),'-','Grazing rate on prey'//trim(index), default=1.0_rk, scale_factor=1.0_rk/sedy0)
             call self%get_parameter(self%gamma(iprey),'gamma'//trim(index),'-','Assim. eff. on plankton '//trim(index), default=0.75_rk)
+            call self%get_parameter(self%fGslp(iprey),'fGslp'//trim(index),'-','Fraction of prey '//trim(index)//' lost to sloppy feeding', default=0.0_rk)
         end do
 
         self%any_calcifier = .false.
@@ -325,39 +342,74 @@ subroutine do(self,_ARGUMENTS_DO_)
     ! When zooplankton biomass is below a certain threshold defined in shared.F90, zooplankton loss prevented.
     z_loss = merge(1.0_rk, 0.0_rk, c >= prevent_loss_Z)
 
-    ! mortality
-    linear_mort = self%m * max(0.5_rk, light_dep_mort)
-    quad_mort   = self%m2 * light_dep_mort * (c / (c + self%Km2))
-    mortality   = (linear_mort + quad_mort) * c * z_loss
+    if (use_slp_egest_paradigm) then
+        ! --- NEW STEINBERG & LANDRY PARADIGM ---
+        total_sloppy = 0.0_rk
+        total_egestion = 0.0_rk
+        total_absorbed = 0.0_rk
+        
+        do iprey = 1, self%nprey
+            uptake = uptake_rate_each(iprey)
+            sloppy = uptake * self%fGslp(iprey)
+            ingested = uptake - sloppy
+            
+            total_sloppy = total_sloppy + sloppy
+            total_egestion = total_egestion + (ingested * (1.0_rk - self%gamma(iprey)))
+            total_absorbed = total_absorbed + (ingested * self%gamma(iprey))
+        end do
+        
+        ! Excretion
+        basal_excretion  = self%exc * c * z_loss
+        active_excretion = total_absorbed * self%fAexc
+        total_excretion  = basal_excretion + active_excretion
+        
+        ! Mortality
+        linear_mort = self%m * max(0.5_rk, light_dep_mort)
+        quad_mort   = self%m2 * light_dep_mort * (c / (c + self%Km2))
+        mortality   = (linear_mort + quad_mort) * c * z_loss
+        
+        ! Bulk Fluxes
+        rhs_z   = total_absorbed - total_excretion - mortality
+        rhs_nut = total_excretion * (1.0_rk - self%fexcdom)
+        rhs_dom = total_sloppy + (total_excretion * self%fexcdom) + (total_egestion * self%freges) + (mortality * self%frmort)
+        rhs_det = (total_egestion * (1.0_rk - self%freges)) + (mortality * (1.0_rk - self%frmort)) - grazing_on_detritus
+        
+        ! Store mineralized excretion for Oxygen/CO2 coupling
+        nut_from_excretion = rhs_nut 
+        
+    else
+        ! --- LEGACY ECOSMO PARADIGM ---
+        ! Mortality
+        linear_mort = self%m * max(0.5_rk, light_dep_mort)
+        quad_mort   = self%m2 * light_dep_mort * (c / (c + self%Km2))
+        mortality   = (linear_mort + quad_mort) * c * z_loss
+        
+        ! Excretion
+        excretion = self%exc * c * z_loss
+        
+        ! Bulk Fluxes
+        rhs_z   = assimilated_uptake_rate - mortality - excretion
+        rhs_nut = excretion
+        rhs_dom = frr * (unassimilated_uptake_rate + mortality)
+        rhs_det = (1.0_rk - frr) * (unassimilated_uptake_rate + mortality) - grazing_on_detritus
+        
+        ! Store mineralized excretion for Oxygen/CO2 coupling
+        nut_from_excretion = rhs_nut 
+    end if
 
-    ! excretion
-    excretion = self%exc * c * z_loss
-
-!    ! zpr (CAGLAR: definition needed)
-!    zpr       = self%zpr * c * z_loss
-
-    rhs_z = assimilated_uptake_rate - mortality - excretion ! - zpr
+    ! Add bulk fluxes to FABM sources (Common to both paradigms)
     _ADD_SOURCE_(self%id_c, rhs_z)
-    
-    ! nutrients
-    rhs_nut = excretion
     _ADD_SOURCE_(self%id_nh4, rhs_nut)
     _ADD_SOURCE_(self%id_pho, rhs_nut)
-
-    ! detritus, dom and opal
-    rhs_det = unassimilated_uptake_rate + mortality
-    _ADD_SOURCE_(self%id_dom, frr * rhs_det)
-
-    rhs_det = (1.0_rk - frr) * rhs_det - grazing_on_detritus
+    _ADD_SOURCE_(self%id_dom, rhs_dom)
     _ADD_SOURCE_(self%id_det, rhs_det)
 
     ! Opal change. Since rhs_opal accounts for whether the prey is silicifier or not (calculated above), we don't need a switch here.
     _ADD_SOURCE_(self%id_opal, rhs_opal )
 
     ! Oxygen change.
-
     bioom6 = merge(1.0_rk, 0.0_rk, oxy > 0.0_rk) 
-    rhs_oxy = -bioom6 * 6.625_rk * excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol 
+    rhs_oxy = -bioom6 * 6.625_rk * nut_from_excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol 
     _ADD_SOURCE_(self%id_oxy, rhs_oxy)
 
     ! CaCO3 change. Since rhs_caco3 accounts for whether the prey is calcifier or not (calculated above), we don't need a switch here.
@@ -365,13 +417,13 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     if (couple_co2) then
         ! CO2 change
-        rhs_dic = excretion * Cmg_to_Cmmol  ! check later, assumption: - rhs_caco3 should not be here as it is already formed by phyto 
+        rhs_dic = nut_from_excretion * Cmg_to_Cmmol  ! check later, assumption: - rhs_caco3 should not be here as it is already formed by phyto 
         _ADD_SOURCE_(self%id_dic, rhs_dic )
         ! Alkalinity change
-!        rhs_alk = excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol - 0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3 * Cmg_to_Cmmol
+!        rhs_alk = nut_from_excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol - 0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3 * Cmg_to_Cmmol
 
         ! bioom6 is ineffective since excretion is the only process contributing to alkalinity change in this zooplankton module, and excretion only happens when oxy > 0 (i.e., bioom6 = 1)
-        rhs_alk = excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol ! same assumption as dic: ignore - rhs_caco3 * 2.0_rk * Cmmol 
+        rhs_alk = nut_from_excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol ! same assumption as dic: ignore - rhs_caco3 * 2.0_rk * Cmmol 
                 _ADD_SOURCE_(self%id_alk, rhs_alk)
         !_ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) )
     end if
