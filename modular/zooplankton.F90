@@ -47,7 +47,7 @@ module ecosmo_zooplankton
         real(rk) :: m, m2, Km2
         real(rk) :: exc
         real(rk) :: KsLightDep, scaleRg
-        real(rk) :: zpr
+!        real(rk) :: zpr
         real(rk),allocatable :: pref(:), grz(:), gamma(:)
         real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
 
@@ -86,7 +86,7 @@ contains
         call self%get_parameter( self%Zsink, 'Zsink', 'm/day', 'zooplankton sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
         call self%get_parameter( self%KsLightDep,  'KsLightDep',   'W m-2', 'PAR half saturation for light dependent mortality',  default=1.0e-20_rk) ! do not make default=0.0
         call self%get_parameter( self%scaleRg,  'scaleRg',   'the minimum value for RgZl scaling for faster grazing while DVM active',  default=1.0_rk) ! default is off (full RgZl) ! remember that smaller Rg means faster feeding 
-        call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
+!        call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
 
         call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Zsink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
 
@@ -245,7 +245,9 @@ subroutine do(self,_ARGUMENTS_DO_)
     ! Notice that prey is not available below certain concentrations defined in shared.F90
     do iprey=1,self%nprey
         _GET_(self%id_preyc(iprey), preyc(iprey))
-        _GET_(self%id_preychl(iprey), preychl(iprey))
+        if (self%has_chl(iprey)) then
+            _GET_(self%id_preychl(iprey), preychl(iprey))
+        end if
 
         bio_loss(iprey) = max(sign(-1.0_rk,preyc(iprey)-self%bio_loss_limit(iprey)),0.0_rk)
     end do
@@ -314,10 +316,10 @@ subroutine do(self,_ARGUMENTS_DO_)
     ! excretion
     excretion = self%exc * c * z_loss
 
-    ! zpr (CAGLAR: definition needed)
-    zpr       = self%zpr * c * z_loss
+!    ! zpr (CAGLAR: definition needed)
+!    zpr       = self%zpr * c * z_loss
 
-    rhs_z = assimilated_uptake_rate - mortality - excretion - zpr
+    rhs_z = assimilated_uptake_rate - mortality - excretion ! - zpr
     _ADD_SOURCE_(self%id_c, rhs_z)
     
     ! nutrients
@@ -346,13 +348,13 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     if (couple_co2) then
         ! CO2 change
-        rhs_dic = (excretion - rhs_caco3) * Cmg_to_Cmmol    
+        rhs_dic = excretion * Cmg_to_Cmmol  ! check later, assumption: - rhs_caco3 should not be here as it is already formed by phyto 
         _ADD_SOURCE_(self%id_dic, rhs_dic )
         ! Alkalinity change
 !        rhs_alk = excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol - 0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3 * Cmg_to_Cmmol
 
         ! bioom6 is ineffective since excretion is the only process contributing to alkalinity change in this zooplankton module, and excretion only happens when oxy > 0 (i.e., bioom6 = 1)
-        rhs_alk = excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol - rhs_caco3 * 2.0_rk * Cmg_to_Cmmol 
+        rhs_alk = excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol ! same assumption as dic: ignore - rhs_caco3 * 2.0_rk * Cmmol 
                 _ADD_SOURCE_(self%id_alk, rhs_alk)
         !_ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) )
     end if

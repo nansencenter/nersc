@@ -187,6 +187,7 @@ contains
         real(rk) :: dic,alk
         real(rk) :: exu
         real(rk) :: mu_act
+        real(rk) :: exu_loss
 
         real(rk) :: Om_cal
         real(rk) :: RainR
@@ -203,7 +204,11 @@ contains
         _GET_(self%id_no3,no3)
         _GET_(self%id_nh4,nh4)
         _GET_(self%id_pho,pho)
-        _GET_(self%id_sil,sil)
+        if (self%is_diatom) then
+            _GET_(self%id_sil,sil)
+        else
+            sil = 0.0_rk
+        end if
         _GET_(self%id_oxy,oxy)
         _GET_(self%id_det,det)
         _GET_(self%id_dom,dom)
@@ -232,7 +237,7 @@ contains
         if (use_temp_dependency_phy) then
             if (self%is_calcifier) then
                 ! after Fielding et al. 2013 (https://doi.org/10.4319%2Flo.2013.58.2.0663)
-                Tdep = 0.1419 * temp**0.8151 ! this assumes very low growth rates for cold temperatures unlike the other ones
+                Tdep = 0.1419_rk * (max(0.0_rk,temp))**0.8151_rk ! this assumes very low growth rates for cold temperatures unlike the other ones
             else
                 ! the model assumes q10 is for every 10 degrees Celsius increase in temperature
                 ! the reference temperature is 0 degree-C. Adjust your self%mu for this reference temperature
@@ -260,7 +265,9 @@ contains
         end if
 
         ! calculate exudation. Default: exulim=0, qexcr=0, thus ignored
-        exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) !* p_loss (VCY: why is ploss commented out here?)
+        ! if on, still can be turned off for the pelagic community (if (c < prevent_loss_P))
+        exu_loss = merge(1.0_rk, 0.0_rk, c > prevent_loss_P)
+        exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) * exu_loss
 
         ! chlorophyll to carbon ratio
         chl2c = self%MAXchl2cP * max(0.01,limit) * mu_act * c / max(self%alfaP * par * chl, 1.0e-10_rk)
@@ -286,11 +293,11 @@ contains
         _ADD_SOURCE_(self%id_chl,rhs_chl)
 
         ! nitrate change in seconds
-        rhs_nit = -(up_no3+0.5e-10)/(up_n+1.0e-10) * prod
+        rhs_nit = -(up_no3+0.5e-10_rk)/(up_n+1.0e-10_rk) * prod
         _ADD_SOURCE_(self%id_no3, rhs_nit)
 
         ! ammonium change in seconds
-        rhs_amm = -(up_nh4+0.5d-10)/(up_n+1.0e-10) * prod
+        rhs_amm = -(up_nh4+0.5e-10_rk)/(up_n+1.0e-10_rk) * prod
         _ADD_SOURCE_(self%id_nh4, rhs_amm)
 
         ! phosphate change in seconds
@@ -306,7 +313,7 @@ contains
         end if
 
         ! oxygen change in seconds
-        rhs_oxy = (6.625*up_nh4 + 8.125*up_no3+1.0e-10)/(up_n+1.0e-10) * prod * Cmg_to_Cmmol * Cmmol_to_Nmmol 
+        rhs_oxy = (6.625_rk*up_nh4 + 8.125_rk*up_no3+1.0e-10_rk)/(up_n+1.0e-10_rk) * prod * Cmg_to_Cmmol * Cmmol_to_Nmmol 
         _ADD_SOURCE_(self%id_oxy, rhs_oxy)
 
         bioom6 = merge(1.0_rk, 0.0_rk, oxy > 0.0_rk)
@@ -320,11 +327,11 @@ contains
             ! (Gehlen et al., 2007; Zondervan et al., 2002).
             RainR = self%Rain0 * max(0._rk, (Om_cal-1._rk)/(Om_cal-1._rk+self%Kcalom))
             RainR = RainR * (max(temp, 0.0_rk)/(2._rk+max(temp, 0.0_rk)))
-            RainR = max( RainR * limit, 0.005_rk) !* self%caco3_flux_multiplier
+            RainR = max( RainR * limit, 0.005_rk) 
 
             !Next we use the rain ratio to calculate fluxes to the detrital calcite pool
             !arising from particulate fractions of coccolith mortality
-            rhs_caco3 = RainR * ( prod - 0.5 * p_loss )
+            rhs_caco3 = RainR * max(0.0_rk, prod - 0.5 * p_loss ) ! check later, assumption: production shouldn't be negative
             _ADD_SOURCE_(self%id_caco3, rhs_caco3)
             _SET_DIAGNOSTIC_(self%id_pcal, RainR)
         end if

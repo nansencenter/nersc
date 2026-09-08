@@ -19,7 +19,7 @@ module ecosmo_oxygen
         type (type_state_variable_id)         :: id_c
         type (type_state_variable_id)         :: id_no3, id_nh4, id_alk
         type (type_dependency_id)             :: id_temp, id_salt
-        type (type_horizontal_dependency_id) :: id_icearea
+        type (type_horizontal_dependency_id) :: id_icearea, id_wind
 
     contains
         procedure :: initialize
@@ -35,6 +35,7 @@ contains
         call self%register_state_dependency(self%id_no3, 'no3', 'mgC/m3', 'nitrate')
         call self%register_state_dependency(self%id_nh4, 'nh4', 'mgC/m3', 'ammonium')
         call self%register_dependency(self%id_temp,standard_variables%temperature)
+        call self%register_dependency(self%id_wind,standard_variables%wind_speed)
         call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
         call self%register_dependency(self%id_icearea,standard_variables%ice_area_fraction)
         if (couple_co2) then
@@ -96,6 +97,7 @@ contains
         _GET_(self%id_salt,S)
         _GET_(self%id_c,oxy)
         _GET_SURFACE_(self%id_icearea,icearea)
+        _GET_SURFACE_(self%id_wind,wnd)
 
         ! Optional oxygen exchange formulation (default is Daewel & Shrum 2013)
         if (use_niva_ersem_oxygen_exchange) then
