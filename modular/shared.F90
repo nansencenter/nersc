@@ -8,7 +8,11 @@
 ! It is based on the ECOSMO II(CHL) code used for Copernicus ARC MFC 2026 operational model code and parameters.
 ! Missing components: 
 !   1) community dependent organic matter sinking speed
-!   2) sea-ice algae (and fast sinking detritus implementation) 
+!   2) sea-ice algae (and fast sinking detritus implementation)
+!
+! VCY - 08/09/2026
+! Added optional parameter for zooplankton prey switching when set to True in fabm.yaml 
+! (default: false). This allows the model to use the original prey preference-based grazing 
 ! ------------------------------- !
 
 module ecosmo_shared
@@ -53,6 +57,8 @@ module ecosmo_shared
    logical  :: use_niva_ersem_oxygen_exchange = .false. ! optional oxygen exchange following NIVA ERSEM implementation in oxygen.F90
    logical  :: use_temp_dependency_phy = .false.        ! optional temperature dependency for P production, if false, Tdep = 1.0_rk, see phy.F90
    logical  :: use_geider_PI_curve     = .false.        ! optional use of Geider's PI curve for P photoproduction, if false, use Yumruktepe et al., 2023 ECOSMO II(CHL) formulation
+   logical  :: use_prey_switching      = .false.        ! optional adaptive prey switching (Murdoch 1969)
+   logical  :: use_bact_nutrient_limitation = .false.   ! optional implicit bacterial nutrient limitation on remineralization
 
    type,extends(type_base_model), public  :: type_ecosmo_shared
    contains
@@ -76,6 +82,8 @@ module ecosmo_shared
          call self%get_parameter( use_niva_ersem_oxygen_exchange, "use_niva_ersem_oxygen_exchange", "",           "global switch for NIVA ERSEM oxygen exchange", default=use_niva_ersem_oxygen_exchange) 
          call self%get_parameter( use_temp_dependency_phy,       "use_temp_dependency_phy",         "",           "global switch for temperature dependency of P production", default=use_temp_dependency_phy)
          call self%get_parameter( use_geider_PI_curve,           "use_geider_PI_curve",             "",           "global switch for Geider's PI curve for P photoproduction", default=use_geider_PI_curve)
+         call self%get_parameter( use_prey_switching,            "use_prey_switching",              "",           "global switch for adaptive prey switching", default=use_prey_switching)
+         call self%get_parameter( use_bact_nutrient_limitation,  "use_bact_nutrient_limitation",    "",           "global switch for implicit bacterial nutrient limitation", default=use_bact_nutrient_limitation)
       end subroutine initialize
 
 end module ecosmo_shared

@@ -37,6 +37,8 @@ module ecosmo_organic_matter
     real(rk) :: remin
     real(rk) :: OMsink
     real(rk) :: cz_OMsink
+    real(rk) :: K_bact_NH4
+    real(rk) :: K_bact_PO4
   contains
       procedure :: initialize
       procedure :: do
@@ -52,6 +54,8 @@ contains
     ! Register parameters
     call self%get_parameter( self%OMsink, 'OMsink', 'm/day', 'organic matter sinking rate', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%remin,  'remin',  '1/day', 'organic matter remineralization rate', default=0.003_rk, scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%K_bact_NH4, 'K_bact_NH4', 'mgC/m3', 'Bacterial half-saturation for NH4', default=0.20_rk)
+    call self%get_parameter( self%K_bact_PO4, 'K_bact_PO4', 'mgC/m3', 'Bacterial half-saturation for PO4', default=0.05_rk)
     ! Register state variables
     call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'concentration in carbon units', minimum=0.0_rk)
 
@@ -78,6 +82,7 @@ contains
     class (type_ecosmo_organic_matter),intent(in) :: self
     _DECLARE_ARGUMENTS_DO_
     real(rk) :: frem, remineralization
+    real(rk) :: bact_lim
     real(rk) :: c, temp
     real(rk) :: no3, pho, nh4, oxy, dic, alk
     real(rk) :: bioom5, bioom6, bioom7
@@ -102,6 +107,29 @@ contains
     bioom7 = merge(1.0_rk, 0.0_rk, (oxy <= 0.0_rk) .and. (no3 <= 0.0_rk)) ! if anoxic and nitrate not available: 1.0, else 0.0
 
     frem = self%remin * ( 1.0_rk + 20.0_rk * ( (temp*temp) / ( 169.0_rk + (temp*temp) ) ) )
+
+    ! -------------------------------------------------------------------------
+    ! Implicit Bacterial Nutrient Limitation
+    ! -------------------------------------------------------------------------
+    ! Remineralization is mediated by heterotrophic bacteria. Because DOM is 
+    ! typically carbon-rich and nutrient-poor, bacteria must consume dissolved 
+    ! inorganic nutrients (NH4, PO4) from the water column to satisfy their 
+    ! cellular stoichiometry. In oligotrophic conditions, bacterial DOM 
+    ! degradation becomes nutrient-limited. 
+    !
+    ! To capture this without an explicit bacterial state variable, the 
+    ! base remineralization rate is modulated by a Michaelis-Menten 
+    ! limitation term based on ambient NH4 and PO4. 
+    !
+    ! References: 
+    ! - Aumont et al. (2015), PISCES-v2 (GMD 8, 2465-2513).
+    ! - Letscher et al. (2015), (Biogeosciences, 12(1), 209-221).
+    ! -------------------------------------------------------------------------
+    if (use_bact_nutrient_limitation) then
+        bact_lim = min( nh4 / (self%K_bact_NH4 + nh4), pho / (self%K_bact_PO4 + pho) )
+        frem = frem * bact_lim
+    end if
+
     remineralization = frem * c
     
     ! Organic matter change

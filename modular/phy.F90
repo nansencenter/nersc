@@ -32,6 +32,13 @@
 ! VCY - 03/09/2026
 ! Added a different temperature dependency on calcifier growth rate after Fielding et al. 2013 (https://doi.org/10.4319%2Flo.2013.58.2.0663).
 ! It assumes much lower growth rates in cold temperatures.
+!
+! VCY - 08/09/2026 - General structural changes following PJW's suggestions (niva-ecosmo codebase):
+!    - Refactored light limitation and Chl:C ratio calculation
+!    - Implemented multiplicative light-nutrient limitation (limit = blight * nutlimit)
+!    - Removed artificial 0.01 minimum for Chl:C ratio
+!    - Refined Geider Chl:C synthesis ratio calculation
+!    - Added "use_geider_PI_curve" to control method choice
 ! ------------------------------- !
 
 module ecosmo_phy
@@ -248,20 +255,38 @@ contains
         end if
         mu_act = self%mu * Tdep ! actual max growth rate after temperature adjustment
 
-        ! light limitation factor
-        if (use_geider_PI_curve) then
-            blight  = (1.0_rk - exp(-self%alfaP * par * (chl/c) / mu_act)) * exp(-self%betaP * par * (chl/c) / mu_act)
-        else
-            blight  = max( ((chl/c) * self%alfaP * par) / sqrt((mu_act)**2 + (chl/c)**2 * self%alfaP**2 * (par**2)) ,0.0_rk)
-        end if
-
-        ! effective growth rate limitation factor, minimum of all limitations
+        ! 1. Calculate Nutrient Limitation (Liebig Minimum)
         if (self%is_diatom) then
-            limit = min(blight, up_n, up_pho, up_sil) ! limitation in maximum growth (range: 0 - 1)
             nutlimit = min(up_n, up_pho, up_sil)
         else
-            limit = min(blight, up_n, up_pho)
             nutlimit = min(up_n, up_pho)
+        end if
+
+        ! 2. Calculate Light Limitation and Chl:C synthesis ratio
+        if (use_geider_PI_curve) then
+            if (par > 1.0e-8_rk .and. mu_act > 1.0e-8_rk) then
+                ! Platt et al. (1980) function with photoinhibition
+                blight = (1.0_rk - exp(-self%alfaP * par * (chl/c) / mu_act)) * exp(-self%betaP * par * (chl/c) / mu_act)
+                
+                ! Geider Chl:C synthesis ratio (uses light-limited growth, no artificial 0.01 cap)
+                chl2c = self%MAXchl2cP * (blight * mu_act * c) / (self%alfaP * par * chl)
+            else
+                blight = 0.0_rk
+                chl2c = self%MAXchl2cP ! L'Hopital's rule limit as PAR -> 0
+            end if
+            
+            ! Multiplicative combination of light and nutrients
+            limit = blight * nutlimit
+            
+        else
+            ! Legacy Yumruktepe et al. (2022) formulation
+            blight  = max( ((chl/c) * self%alfaP * par) / sqrt((mu_act)**2 + (chl/c)**2 * self%alfaP**2 * (par**2)) ,0.0_rk)
+            
+            ! Liebig minimum of all limitations
+            limit = min(blight, nutlimit)
+            
+            ! Legacy Chl:C synthesis ratio (with 0.01 cap)
+            chl2c = self%MAXchl2cP * max(0.01_rk, limit) * mu_act * c / max(self%alfaP * par * chl, 1.0e-10_rk)
         end if
 
         ! calculate exudation. Default: exulim=0, qexcr=0, thus ignored
@@ -269,8 +294,7 @@ contains
         exu_loss = merge(1.0_rk, 0.0_rk, c > prevent_loss_P)
         exu = min(1.0_rk,( ( 1.0_rk - nutlimit ) * self%exulim + self%qexcr )) * exu_loss
 
-        ! chlorophyll to carbon ratio
-        chl2c = self%MAXchl2cP * max(0.01,limit) * mu_act * c / max(self%alfaP * par * chl, 1.0e-10_rk)
+        ! Clamp Chl:C ratio to allowed min/max bounds
         chl2c = max(self%MINchl2cP,chl2c)
         chl2c = min(self%MAXchl2cP,chl2c)
 

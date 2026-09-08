@@ -19,6 +19,10 @@
 ! because this causes "branch mispredictions" that stall the CPU pipeline.
 ! However, self%is_diatom and self%is_calcifier are loop invariants. They are defined once during initialization and never change during the spatial _LOOP_BEGIN_ ... _LOOP_END_.
 ! Modern CPUs will perfectly predict this branch 100% of the time after the first grid point. The cost of evaluating the if statement becomes virtually zero.
+!
+! VCY - 08/09/2026
+! Added optional parameter for zooplankton prey switching when set to True in fabm.yaml 
+! (default: false). This allows the model to use the original prey preference-based grazing formulation.
 ! ------------------------------- !
 
 module ecosmo_zooplankton
@@ -258,14 +262,27 @@ subroutine do(self,_ARGUMENTS_DO_)
     food_each = self%pref * preyc
     food = sum(food_each)
 
-    denom = (self%Rg * scale_Rg)**2.0_rk + food**2.0_rk + eps
-
-    do iprey = 1, self%nprey
-        uptake_rate_each(iprey) = c * self%grz(iprey) * food_each(iprey) * preyc(iprey) / denom
-
-        ! threshold applied ONLY here
-        uptake_rate_each(iprey) = uptake_rate_each(iprey) * bio_loss(iprey)
-    end do
+    if (use_prey_switching) then
+        do iprey = 1, self%nprey
+            effective_prey(iprey) = food_each(iprey) * preyc(iprey) / (food + eps)
+        end do
+        food = sum(effective_prey)
+        denom = (self%Rg * scale_Rg)**2.0_rk + food**2.0_rk + eps
+        
+        do iprey = 1, self%nprey
+            uptake_rate_each(iprey) = c * self%grz(iprey) * effective_prey(iprey) * preyc(iprey) / denom
+            ! threshold applied ONLY here
+            uptake_rate_each(iprey) = uptake_rate_each(iprey) * bio_loss(iprey)
+        end do
+    else
+        denom = (self%Rg * scale_Rg)**2.0_rk + food**2.0_rk + eps
+        
+        do iprey = 1, self%nprey
+            uptake_rate_each(iprey) = c * self%grz(iprey) * food_each(iprey) * preyc(iprey) / denom
+            ! threshold applied ONLY here
+            uptake_rate_each(iprey) = uptake_rate_each(iprey) * bio_loss(iprey)
+        end do
+    end if
 
     total_grazing = sum(uptake_rate_each)
     assimilated_uptake_rate = sum( self%gamma * uptake_rate_each)
