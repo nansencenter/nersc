@@ -33,6 +33,10 @@
 ! In the "classical" scheme, egestion and excretion are treated as separate processes that contribute to the carbon cycle.
 ! In this new scheme, egestion and excretion are treated as separate processes that contribute to the carbon cycle.
 ! The implementation is taking from PJW approach used in niva-ecosmo
+!
+! VCY - 09/09/2026
+! Added explicit calcifier fraction (fc) to the grazing loop for prey zooplankton. This is only activated when use_virtual_calcite is True.
+!   
 ! ------------------------------- !
 
 module ecosmo_zooplankton
@@ -62,7 +66,7 @@ module ecosmo_zooplankton
         real(rk) :: exc
         real(rk) :: KsLightDep, scaleRg
 !        real(rk) :: zpr
-        real(rk),allocatable :: pref(:), grz(:), gamma(:), fGslp(:)
+        real(rk),allocatable :: pref(:), grz(:), gamma(:), fGslp(:), fdissC(:)
         real(rk) :: fAexc, fexcdom, freges, frmort
         real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
 
@@ -123,12 +127,14 @@ contains
         allocate(self%grz(self%nprey))
         allocate(self%gamma(self%nprey))
         allocate(self%fGslp(self%nprey))
+        allocate(self%fdissC(self%nprey))
         do iprey=1,self%nprey
             write (index,'(i0)') iprey
             call self%get_parameter(self%pref(iprey),'pref'//trim(index),'-','relative affinity for prey type '//trim(index))
             call self%get_parameter(self%grz(iprey),'grz'//trim(index),'-','Grazing rate on prey'//trim(index), default=1.0_rk, scale_factor=1.0_rk/sedy0)
             call self%get_parameter(self%gamma(iprey),'gamma'//trim(index),'-','Assim. eff. on plankton '//trim(index), default=0.75_rk)
             call self%get_parameter(self%fGslp(iprey),'fGslp'//trim(index),'-','Fraction of prey '//trim(index)//' lost to sloppy feeding', default=0.0_rk)
+            call self%get_parameter(self%fdissC(iprey),'fdissC'//trim(index),'-','Fraction of prey '//trim(index)//' calcite dissolved in gut', default=0.5_rk)
         end do
 
         self%any_calcifier = .false.
@@ -334,7 +340,15 @@ subroutine do(self,_ARGUMENTS_DO_)
 
         ! additive input to total rhs for caco3
         if (couple_co2 .and. self%prey_is_calcifier(iprey)) then
-            rhs_caco3 = rhs_caco3 + (0.5_rk * uptake_rate_each(iprey))  * pcal 
+            if (use_virtual_calcite) then
+                if (use_slp_egest_paradigm) then
+                    rhs_caco3 = rhs_caco3 + (uptake_rate_each(iprey) * pcal) * (1.0_rk - (self%fdissC(iprey) * (1.0_rk - self%fGslp(iprey))))
+                else
+                    rhs_caco3 = rhs_caco3 + (uptake_rate_each(iprey) * pcal) * (1.0_rk - self%fdissC(iprey))
+                end if
+            else
+                rhs_caco3 = rhs_caco3 + (0.5_rk * uptake_rate_each(iprey))  * pcal 
+            end if
         end if
     end do
 
@@ -417,15 +431,19 @@ subroutine do(self,_ARGUMENTS_DO_)
 
     if (couple_co2) then
         ! CO2 change
-        rhs_dic = nut_from_excretion * Cmg_to_Cmmol  ! check later, assumption: - rhs_caco3 should not be here as it is already formed by phyto 
-        _ADD_SOURCE_(self%id_dic, rhs_dic )
+        rhs_dic = nut_from_excretion * Cmg_to_Cmmol  
         ! Alkalinity change
-!        rhs_alk = nut_from_excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol - 0.5_rk * rhs_oxy * (1._rk-bioom6) - rhs_caco3 * Cmg_to_Cmmol
+        rhs_alk = nut_from_excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol 
+        
+        if (use_virtual_calcite) then
+            ! Deduct the DIC/ALK now to balance the carbon budget
+            ! If coccolithophores were explicitly defined, the feedback to DIC/ALK is already handled within phy.F90
+            rhs_dic = rhs_dic - (rhs_caco3 * Cmg_to_Cmmol)
+            rhs_alk = rhs_alk - (2.0_rk * rhs_caco3 * Cmg_to_Cmmol)
+        end if
 
-        ! bioom6 is ineffective since excretion is the only process contributing to alkalinity change in this zooplankton module, and excretion only happens when oxy > 0 (i.e., bioom6 = 1)
-        rhs_alk = nut_from_excretion * Cmg_to_Cmmol * Cmmol_to_Nmmol ! same assumption as dic: ignore - rhs_caco3 * 2.0_rk * Cmmol 
-                _ADD_SOURCE_(self%id_alk, rhs_alk)
-        !_ADD_SOURCE_(self%id_alk, rhs_amm -0.5_rk * rhs_oxy * (1._rk-bioom6) )
+        _ADD_SOURCE_(self%id_dic, rhs_dic )
+        _ADD_SOURCE_(self%id_alk, rhs_alk)
     end if
 
     ! Export diagnostic variables

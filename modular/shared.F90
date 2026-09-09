@@ -58,6 +58,7 @@ module ecosmo_shared
    logical  :: use_geider_PI_curve     = .false.        ! optional use of Geider's PI curve for P photoproduction, if false, use Yumruktepe et al., 2023 ECOSMO II(CHL) formulation
    logical  :: use_prey_switching      = .false.        ! optional adaptive prey switching (Murdoch 1969)
    logical  :: use_slp_egest_paradigm  = .false.        ! optional explicit sloppy feeding and waste routing (Steinberg & Landry 2017)
+   logical  :: use_virtual_calcite     = .false.        ! optional virtual calcite paradigm where calcite is only formed upon mortality and grazing
    logical  :: use_bact_nutrient_limitation = .false.   ! optional implicit bacterial nutrient limitation on remineralization
 
    type,extends(type_base_model), public  :: type_ecosmo_shared
@@ -79,10 +80,12 @@ module ecosmo_shared
          call self%get_parameter( model_has_silicifier,          "model_has_silicifier",            "",           "global switch for opal", default=model_has_silicifier)
          call self%get_parameter( model_has_calcifier,           "model_has_calcifier",             "",           "global switch for calcite", default=model_has_calcifier)
          call self%get_parameter( depth_dependent_sinking_speed, "depth_dependent_sinking_speed",   "",           "global switch for depth dependent sinking speed", default=depth_dependent_sinking_speed)
-         call self%get_parameter( use_niva_ersem_oxygen_exchange, "use_niva_ersem_oxygen_exchange", "",           "global switch for NIVA ERSEM oxygen exchange", default=use_niva_ersem_oxygen_exchange) 
-         call self%get_parameter( use_temp_dependency_phy,       "use_temp_dependency_phy",         "",           "global switch for temperature dependency of P production", default=use_temp_dependency_phy)
-         call self%get_parameter( use_geider_PI_curve,           "use_geider_PI_curve",             "",           "global switch for Geider's PI curve for P photoproduction", default=use_geider_PI_curve)
+         call self%get_parameter( use_niva_ersem_oxygen_exchange, "use_niva_ersem_oxygen_exchange", "",           "global switch for alternative oxygen exchange", default=use_niva_ersem_oxygen_exchange)
+         call self%get_parameter( use_temp_dependency_phy,       "use_temp_dependency_phy",         "",           "global switch for phytoplankton temperature dependency", default=use_temp_dependency_phy)
+         call self%get_parameter( use_geider_PI_curve,           "use_geider_PI_curve",             "",           "global switch for phytoplankton Geider PI curve", default=use_geider_PI_curve)
          call self%get_parameter( use_prey_switching,            "use_prey_switching",              "",           "global switch for adaptive prey switching", default=use_prey_switching)
+         call self%get_parameter( use_slp_egest_paradigm,        "use_slp_egest_paradigm",          "",           "global switch for sloppy feeding paradigm", default=use_slp_egest_paradigm)
+         call self%get_parameter( use_virtual_calcite,           "use_virtual_calcite",             "",           "global switch for virtual calcite paradigm", default=use_virtual_calcite)
          call self%get_parameter( use_bact_nutrient_limitation,  "use_bact_nutrient_limitation",    "",           "global switch for implicit bacterial nutrient limitation", default=use_bact_nutrient_limitation)
       end subroutine initialize
 

@@ -42,6 +42,13 @@
 !
 !    Moved light_att_chl from shared.F90 to here. The following study suggests phyto type specification.
 !    Johnsen, G., & Sakshaug, E. (2007). Biooptical characteristics of PSII and PSI in 33 species (13 pigment groups) of marine phytoplankton, and the relevance for pulse‐amplitude‐modulated and fast‐repetition‐rate fluorometry. Journal of Phycology, 43(6), 1236-1251.
+!
+! VCY - 09/09/2026
+! Implemented "virtual calcification" logic for coccolithophores.
+! Instead of explicit calcifier biomass, calcification is now driven by the fractional mortality of diatoms and coccolithophores.
+! It uses a modified "calcifier fraction" (fc) which is high when PO4-starved but N-replete.
+! This is only activated when use_virtual_calcite is True.
+! See implementation in zooplankton.F90 for the carbon/alkalinity feedback.
 ! ------------------------------- !
 
 module ecosmo_phy
@@ -203,6 +210,7 @@ contains
 
         real(rk) :: Om_cal
         real(rk) :: RainR
+        real(rk) :: calc_frac
 
         _LOOP_BEGIN_
         ! Not all instances will need rhs_caco3 (e.g. CO2 module without coccoliths))
@@ -355,12 +363,21 @@ contains
             ! within coccolithophores as a function of Omega(calcite), based on experimental data
             ! (Gehlen et al., 2007; Zondervan et al., 2002).
             RainR = self%Rain0 * max(0._rk, (Om_cal-1._rk)/(Om_cal-1._rk+self%Kcalom))
-            RainR = RainR * (max(temp, 0.0_rk)/(2._rk+max(temp, 0.0_rk)))
-            RainR = max( RainR * limit, 0.005_rk) 
+            
+            if (use_virtual_calcite) then
+                ! ERSEM Calcifying Fraction: High when PO4-starved but N-replete
+                calc_frac = min((1.0_rk - up_pho), up_n) * (max(temp, 0.0_rk)/(2._rk+max(temp, 0.0_rk)))
+                RainR = max(RainR * calc_frac, 0.005_rk)
+                
+                ! Virtual Calcite: Formed only upon particulate fraction of mortality (1 - frr)
+                rhs_caco3 = RainR * p_loss * (1.0_rk - frr)
+            else
+                ! Active Production from explicitly defined coccolithophores 
+                RainR = RainR * (max(temp, 0.0_rk)/(2._rk+max(temp, 0.0_rk)))
+                RainR = max( RainR * limit, 0.005_rk) 
+                rhs_caco3 = RainR * max(0.0_rk, prod - 0.5_rk * p_loss )
+            end if
 
-            !Next we use the rain ratio to calculate fluxes to the detrital calcite pool
-            !arising from particulate fractions of coccolith mortality
-            rhs_caco3 = RainR * max(0.0_rk, prod - 0.5 * p_loss ) ! check later, assumption: production shouldn't be negative
             _ADD_SOURCE_(self%id_caco3, rhs_caco3)
             _SET_DIAGNOSTIC_(self%id_pcal, RainR)
         end if
