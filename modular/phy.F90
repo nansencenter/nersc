@@ -267,14 +267,26 @@ contains
 
         ! temperature dependence
         if (use_temp_dependency_phy) then
-            if (self%is_calcifier) then
-                ! after Fielding et al. 2013 (https://doi.org/10.4319%2Flo.2013.58.2.0663)
-                Tdep = 0.1419_rk * (max(0.0_rk,temp))**0.8151_rk ! this assumes very low growth rates for cold temperatures unlike the other ones
-            else
+            !if (self%is_calcifier) then
+            !    ! after Fielding et al. 2013 (https://doi.org/10.4319%2Flo.2013.58.2.0663)
+            !    Tdep = 0.1419_rk * (max(0.0_rk,temp))**0.8151_rk ! this assumes very low growth rates for cold temperatures unlike the other ones
+            !else
                 ! the model assumes q10 is for every 10 degrees Celsius increase in temperature
                 ! the reference temperature is 0 degree-C. Adjust your self%mu for this reference temperature
                 Tdep = self%q10**(temp/10.0_rk)
-            end if
+                !
+                ! consider using the following in the fabm.yaml file.
+                ! some compiled data from literature suggests for high latitude NA and Arctic:
+                ! diatom:     Q10: 1.62; mu: 0.57
+                ! flagellate: Q10: 1.55; mu: 0.43
+                ! coccoliths: Q10: 3.14; mu: 0.14
+                ! some compiled data from literature suggests for global values the following:
+                ! flagellate data (considered as non-diatom and non-calcifier) might be to biased towards pico- sized phyto
+                ! diatom:     Q10: 2.25; mu: 0.51
+                ! flagellate: Q10: 2.08; mu: 0.17
+                ! coccoliths: Q10: 1.79; mu: 0.26
+                
+            !end if
         else
             Tdep = 1.0_rk
         end if
