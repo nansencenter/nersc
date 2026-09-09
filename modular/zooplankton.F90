@@ -36,7 +36,12 @@
 !
 ! VCY - 09/09/2026
 ! Added explicit calcifier fraction (fc) to the grazing loop for prey zooplankton. This is only activated when use_virtual_calcite is True.
-!   
+! 
+! VCY - 09/09/2026
+! Added community sinking option for zooplankton egestion and mortality
+! If use_community_sinking is True, then the sinking speed is determined by the prey 
+! (either detritus sinking speed or the prey detritus sinking speed).
+! 
 ! ------------------------------- !
 
 module ecosmo_zooplankton
@@ -54,6 +59,10 @@ module ecosmo_zooplankton
         type (type_dependency_id)             :: id_temp, id_salt, id_par
         type (type_dependency_id)             :: id_pcal
         type (type_diagnostic_variable_id)    :: id_secprod, id_totalsecprod
+
+        type (type_dependency_id)             :: id_dsnk
+        real(rk)                              :: sinkD
+        real(rk), allocatable                 :: prey_sinkD(:)
 
         type (type_horizontal_dependency_id) :: id_lat
         type (type_global_dependency_id)     :: id_yearday
@@ -128,6 +137,7 @@ contains
         allocate(self%gamma(self%nprey))
         allocate(self%fGslp(self%nprey))
         allocate(self%fdissC(self%nprey))
+        allocate(self%prey_sinkD(self%nprey))
         do iprey=1,self%nprey
             write (index,'(i0)') iprey
             call self%get_parameter(self%pref(iprey),'pref'//trim(index),'-','relative affinity for prey type '//trim(index))
@@ -135,7 +145,10 @@ contains
             call self%get_parameter(self%gamma(iprey),'gamma'//trim(index),'-','Assim. eff. on plankton '//trim(index), default=0.75_rk)
             call self%get_parameter(self%fGslp(iprey),'fGslp'//trim(index),'-','Fraction of prey '//trim(index)//' lost to sloppy feeding', default=0.0_rk)
             call self%get_parameter(self%fdissC(iprey),'fdissC'//trim(index),'-','Fraction of prey '//trim(index)//' calcite dissolved in gut', default=0.5_rk)
+            call self%get_parameter(self%prey_sinkD(iprey), 'prey'//trim(index)//'_sinkD', 'm/d', 'sinking speed of unassimilated waste from prey '//trim(index), default=5.0_rk, scale_factor=1.0_rk/sedy0)
         end do
+
+        call self%get_parameter(self%sinkD, 'sinkD', 'm/d', 'sinking speed of detritus from zooplankton mortality', default=5.0_rk, scale_factor=1.0_rk/sedy0)
 
         self%any_calcifier = .false.
         do iprey=1,self%nprey
@@ -193,6 +206,10 @@ contains
         call self%register_dependency(self%id_lat,standard_variables%latitude)
         call self%register_dependency(self%id_yearday,standard_variables%number_of_days_since_start_of_the_year)
 
+        if (use_community_sinking) then
+            call self%register_state_dependency(self%id_dsnk, 'dsnk', 'mgC/m3', 'detritus sinking advector')
+        end if
+
         ! register total zooplankton biomass for output
         call self%add_to_aggregate_variable(type_bulk_standard_variable(name='zbiomass', units='mgC/m3',aggregate_variable=.true.), &
             self%id_c,include_background=.true.)
@@ -232,6 +249,7 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: denom, eps
     real(rk) :: total_grazing, grazing_on_detritus
     real(rk) :: z_loss
+    real(rk) :: dsnk, rhs_dsnk, det_val, spd_det, spd, egestion, waste
     eps = 1e-12_rk
 
     _LOOP_BEGIN_
@@ -356,6 +374,16 @@ subroutine do(self,_ARGUMENTS_DO_)
     ! When zooplankton biomass is below a certain threshold defined in shared.F90, zooplankton loss prevented.
     z_loss = merge(1.0_rk, 0.0_rk, c >= prevent_loss_Z)
 
+    if (use_community_sinking) then
+        _GET_(self%id_dsnk, dsnk)
+        det_val = 0.0_rk
+        do iprey = 1, self%nprey
+            if (self%prey_is_detritus(iprey)) det_val = preyc(iprey)
+        end do
+        spd_det = dsnk / max(det_val, 1e-10_rk)
+        rhs_dsnk = 0.0_rk
+    end if
+
     if (use_slp_egest_paradigm) then
         ! --- NEW STEINBERG & LANDRY PARADIGM ---
         total_sloppy = 0.0_rk
@@ -366,10 +394,17 @@ subroutine do(self,_ARGUMENTS_DO_)
             uptake = uptake_rate_each(iprey)
             sloppy = uptake * self%fGslp(iprey)
             ingested = uptake - sloppy
+            egestion = ingested * (1.0_rk - self%gamma(iprey))
             
             total_sloppy = total_sloppy + sloppy
-            total_egestion = total_egestion + (ingested * (1.0_rk - self%gamma(iprey)))
+            total_egestion = total_egestion + egestion
             total_absorbed = total_absorbed + (ingested * self%gamma(iprey))
+            
+            if (use_community_sinking) then
+                ! Explicitly exclude DOM (sloppy feeding and dissolved egestion)
+                spd = merge(spd_det, self%prey_sinkD(iprey), self%prey_is_detritus(iprey)) ! if the prey is detritus, speed is the speed of detritus. If the prey is plankton, then the speed is that of prey detritus.
+                rhs_dsnk = rhs_dsnk + egestion * (1.0_rk - self%freges) * spd
+            end if
         end do
         
         ! Excretion
@@ -409,6 +444,19 @@ subroutine do(self,_ARGUMENTS_DO_)
         
         ! Store mineralized excretion for Oxygen/CO2 coupling
         nut_from_excretion = rhs_nut 
+        
+        if (use_community_sinking) then
+            do iprey = 1, self%nprey
+                spd = merge(spd_det, self%prey_sinkD(iprey), self%prey_is_detritus(iprey))  ! if the prey is detritus, speed is the speed of detritus. If the prey is plankton, then the speed is that of prey detritus.
+                rhs_dsnk = rhs_dsnk + uptake_rate_each(iprey) * (1.0_rk - self%gamma(iprey)) * (1.0_rk - self%frmort) * spd
+            end do
+        end if
+    end if
+    
+    if (use_community_sinking) then
+        rhs_dsnk = rhs_dsnk + (mortality * (1.0_rk - self%frmort)) * self%sinkD
+        rhs_dsnk = rhs_dsnk - grazing_on_detritus * spd_det
+        _ADD_SOURCE_(self%id_dsnk, rhs_dsnk)
     end if
 
     ! Add bulk fluxes to FABM sources (Common to both paradigms)

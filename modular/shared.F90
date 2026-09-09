@@ -60,6 +60,7 @@ module ecosmo_shared
    logical  :: use_slp_egest_paradigm  = .false.        ! optional explicit sloppy feeding and waste routing (Steinberg & Landry 2017)
    logical  :: use_virtual_calcite     = .false.        ! optional virtual calcite paradigm where calcite is only formed upon mortality and grazing
    logical  :: use_bact_nutrient_limitation = .false.   ! optional implicit bacterial nutrient limitation on remineralization
+   logical  :: use_community_sinking = .false.          ! global switch for community composition dependent sinking rates
 
    type,extends(type_base_model), public  :: type_ecosmo_shared
    contains
@@ -87,6 +88,7 @@ module ecosmo_shared
          call self%get_parameter( use_slp_egest_paradigm,        "use_slp_egest_paradigm",          "",           "global switch for sloppy feeding paradigm", default=use_slp_egest_paradigm)
          call self%get_parameter( use_virtual_calcite,           "use_virtual_calcite",             "",           "global switch for virtual calcite paradigm", default=use_virtual_calcite)
          call self%get_parameter( use_bact_nutrient_limitation,  "use_bact_nutrient_limitation",    "",           "global switch for implicit bacterial nutrient limitation", default=use_bact_nutrient_limitation)
+         call self%get_parameter( use_community_sinking,         "use_community_sinking",           "",           "global switch for community sinking speed",              default=use_community_sinking)
       end subroutine initialize
 
 end module ecosmo_shared

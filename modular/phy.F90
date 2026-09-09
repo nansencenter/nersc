@@ -49,6 +49,10 @@
 ! It uses a modified "calcifier fraction" (fc) which is high when PO4-starved but N-replete.
 ! This is only activated when use_virtual_calcite is True.
 ! See implementation in zooplankton.F90 for the carbon/alkalinity feedback.
+!
+! Added community sinking option for phytoplankton detritus.
+! If use_community_sinking is True, then the sinking speed is determined by the source. This implementation works together with zooplankton.F90 and organic_matter.F90
+! 
 ! ------------------------------- !
 
 module ecosmo_phy
@@ -68,7 +72,9 @@ module ecosmo_phy
         type (type_state_variable_id)         :: id_det, id_dom, id_opal , id_caco3
         type (type_dependency_id)             :: id_temp, id_salt, id_par, id_parmean, id_Om_cal
         type (type_diagnostic_variable_id)    :: id_primprod, id_netpp , id_pcal
+        type (type_dependency_id)             :: id_dsnk
 
+        real(rk) :: sinkD
         real(rk) :: MAXchl2cP, MINchl2cP, alfaP, betaP
         real(rk) :: mu, m, m2, Km2, mu_act   
         real(rk) :: rNH4, rNO3, rPO4, rSi
@@ -119,6 +125,7 @@ contains
         call self%get_parameter( self%qexcr,        'qexcr',        '-',          'fraction of GPP released as DOC (excretion) due to activity',  default=0.0_rk) 
         call self%get_parameter( self%SiUptLim,     'SiUptLim',     'mgC/m3',     'Stop Si uptake below this concentration',  default=80.0_rk)
         call self%get_parameter( self%q10,          'q10',          '-',          'Q_10 temperature coefficient', default=1.0_rk)
+        call self%get_parameter( self%sinkD,        'sinkD',        'm/d',        'sinking speed of detritus produced by this phyto', default=5.0_rk, scale_factor=1.0_rk/sedy0)
         ! ----------------------------------- !
 
         ! Register state variables
@@ -167,6 +174,10 @@ contains
         call self%register_dependency(self%id_salt,standard_variables%practical_salinity)
         call self%register_dependency(self%id_par,standard_variables%downwelling_photosynthetic_radiative_flux)
 
+        if (use_community_sinking) then
+            call self%register_state_dependency(self%id_dsnk, 'dsnk', 'mgC/m3', 'detritus sinking advector')
+        end if
+
         if (couple_co2) then
             call self%register_state_dependency(self%id_dic, 'dic','mmol m-3','dic budget')
             call self%register_state_dependency(self%id_alk, 'alk','mmol m-3','alkalinity budget')
@@ -211,6 +222,7 @@ contains
         real(rk) :: Om_cal
         real(rk) :: RainR
         real(rk) :: calc_frac
+        real(rk) :: rhs_dsnk
 
         _LOOP_BEGIN_
         ! Not all instances will need rhs_caco3 (e.g. CO2 module without coccoliths))
@@ -395,6 +407,12 @@ contains
         ! detritus changes in seconds
         rhs_det = p_loss * (1.0_rk - frr)
         _ADD_SOURCE_(self%id_det, rhs_det)
+
+        if (use_community_sinking) then
+            ! rhs_det inherently excludes the (frr) dissolved fraction and virtual calcite shell
+            rhs_dsnk = rhs_det * self%sinkD
+            _ADD_SOURCE_(self%id_dsnk, rhs_dsnk)
+        end if
 
         ! DOM changes in seconds
         rhs_dom = (frr * p_loss) + (exu * prod)

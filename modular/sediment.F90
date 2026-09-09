@@ -22,6 +22,7 @@ module ecosmo_sediment
         type (type_dependency_id)             :: id_temp
         type (type_horizontal_dependency_id)  :: id_tbs
         type (type_dependency_id)             :: id_thickness
+        type (type_dependency_id)             :: id_dsnk
 
         real(rk) :: crBotStr, resuspRt, sedimRt, burialRt
         real(rk) :: reminSED, TctrlDenit, RelSEDp1, RelSEDp2, reminSEDsi
@@ -88,6 +89,10 @@ contains
             call self%register_state_dependency(self%id_dic, 'dic','mmol m-3','dic budget')
             call self%register_state_dependency(self%id_alk, 'alk','mmol m-3','alkalinity budget')
         end if
+
+        if (use_community_sinking) then
+            call self%register_state_dependency(self%id_dsnk, 'dsnk', 'mgC/m3', 'detritus sinking advector')
+        end if
     end subroutine initialize
 
     subroutine do_bottom(self,_ARGUMENTS_DO_BOTTOM_)
@@ -106,6 +111,7 @@ contains
         real(rk) :: Rsa_p, yt1, yt2
         real(rk) :: thickness
         real(rk) :: O2_norm, nitr_const
+        real(rk) :: dsnk, dsnk_sedimentation
 
         O2_norm = 0.1_rk * O2ml_l_to_O2mmol_m3
         nitr_const = 0.1_rk / sedy0 
@@ -223,6 +229,17 @@ contains
     
         ! detritus flux
         _SET_BOTTOM_EXCHANGE_(self%id_det, Rsd * sed1 - det_sedimentation)
+
+        if (use_community_sinking) then
+            _GET_(self%id_dsnk, dsnk)
+            
+            ! EXACT MATCH to ecosmo.F90: Uses Rds constraint (0 during resuspension, sedimRt during settling)
+            dsnk_sedimentation = Rds * dsnk
+            if (dsnk_sedimentation * long_time_step_for_assumed_sedimentation_flux > dsnk * thickness) dsnk_sedimentation = 0.0_rk
+            
+            ! Resuspension inherits the dynamic speed of the water column layer it mixes into.
+            _SET_BOTTOM_EXCHANGE_(self%id_dsnk, Rsd * sed1 * (dsnk / max(det, 1e-10_rk)) - dsnk_sedimentation)
+        end if
 
     ! ! oxygen
     ! flux = -(&
