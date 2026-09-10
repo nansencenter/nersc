@@ -75,7 +75,7 @@ module ecosmo_zooplankton
         real(rk) :: m, m2, Km2
         real(rk) :: exc
         real(rk) :: KsLightDep, scaleRg
-!        real(rk) :: zpr
+        real(rk) :: zpr
         real(rk),allocatable :: pref(:), grz(:), gamma(:), fGslp(:), fdissC(:)
         real(rk) :: fAexc, fexcdom, freges, frmort
         real(rk),allocatable :: bio_loss(:),bio_loss_limit(:)
@@ -119,7 +119,7 @@ contains
         call self%get_parameter( self%fexcdom, 'fexcdom', '-', 'Fraction of excretion routed to DOM', default=0.0_rk)
         call self%get_parameter( self%freges,  'freges',  '-', 'Fraction of egestion routed to DOM', default=0.0_rk)
         call self%get_parameter( self%frmort,  'frmort',  '-', 'Fraction of mortality routed to DOM', default=frr)
-!        call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
+        call self%get_parameter(self%zpr, 'zpr', '1/day', 'zpr_long_name_needed', default=0.001_rk, scale_factor=1.0_rk/sedy0)
 
         call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'carbon', minimum=1.0e-7_rk, vertical_movement=-self%Zsink ,initial_value=1e-4_rk*Nmmol_to_Cmmol*Cmmol_to_Cmg )
 
@@ -135,6 +135,7 @@ contains
         allocate(self%prey_is_calcifier(self%nprey))
         allocate(self%bio_loss_limit(self%nprey))
         allocate(self%grz(self%nprey))
+        allocate(self%gamma(self%nprey))
         allocate(self%fGslp(self%nprey))
         allocate(self%fdissC(self%nprey))
         allocate(self%id_prey_sinkD(self%nprey))
@@ -421,9 +422,12 @@ subroutine do(self,_ARGUMENTS_DO_)
         linear_mort = self%m * max(0.5_rk, light_dep_mort)
         quad_mort   = self%m2 * light_dep_mort * (c / (c + self%Km2))
         mortality   = (linear_mort + quad_mort) * c * z_loss
-        
+
+        ! zpr (CAGLAR: definition needed)
+        zpr       = self%zpr * c * z_loss        
+
         ! Bulk Fluxes
-        rhs_z   = total_absorbed - total_excretion - mortality
+        rhs_z   = total_absorbed - total_excretion - mortality - zpr
         rhs_nut = total_excretion * (1.0_rk - self%fexcdom)
         rhs_dom = total_sloppy + (total_excretion * self%fexcdom) + (total_egestion * self%freges) + (mortality * self%frmort)
         rhs_det = (total_egestion * (1.0_rk - self%freges)) + (mortality * (1.0_rk - self%frmort)) - grazing_on_detritus
@@ -437,12 +441,15 @@ subroutine do(self,_ARGUMENTS_DO_)
         linear_mort = self%m * max(0.5_rk, light_dep_mort)
         quad_mort   = self%m2 * light_dep_mort * (c / (c + self%Km2))
         mortality   = (linear_mort + quad_mort) * c * z_loss
+
+        ! zpr (CAGLAR: definition needed)
+        zpr       = self%zpr * c * z_loss  
         
         ! Excretion
         excretion = self%exc * c * z_loss
         
         ! Bulk Fluxes
-        rhs_z   = assimilated_uptake_rate - mortality - excretion
+        rhs_z   = assimilated_uptake_rate - mortality - excretion - zpr
         rhs_nut = excretion
         rhs_dom = frr * (unassimilated_uptake_rate + mortality)
         rhs_det = (1.0_rk - frr) * (unassimilated_uptake_rate + mortality) - grazing_on_detritus
