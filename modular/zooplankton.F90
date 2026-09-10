@@ -60,7 +60,7 @@ module ecosmo_zooplankton
         type (type_dependency_id)             :: id_pcal
         type (type_diagnostic_variable_id)    :: id_secprod, id_totalsecprod
 
-        type (type_dependency_id)             :: id_dsnk
+        type (type_state_variable_id)         :: id_dsnk
         real(rk)                              :: sinkD
         real(rk), allocatable                 :: prey_sinkD(:)
 
@@ -250,6 +250,8 @@ subroutine do(self,_ARGUMENTS_DO_)
     real(rk) :: total_grazing, grazing_on_detritus
     real(rk) :: z_loss
     real(rk) :: dsnk, rhs_dsnk, det_val, spd_det, spd, egestion, waste
+    real(rk) :: sloppy, ingested, active_excretion, basal_excretion, total_excretion
+    real(rk) :: total_sloppy, total_egestion, total_absorbed, nut_from_excretion
     eps = 1e-12_rk
 
     _LOOP_BEGIN_

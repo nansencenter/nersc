@@ -72,7 +72,7 @@ module ecosmo_phy
         type (type_state_variable_id)         :: id_det, id_dom, id_opal , id_caco3
         type (type_dependency_id)             :: id_temp, id_salt, id_par, id_parmean, id_Om_cal
         type (type_diagnostic_variable_id)    :: id_primprod, id_netpp , id_pcal
-        type (type_dependency_id)             :: id_dsnk
+        type (type_state_variable_id)         :: id_dsnk
 
         real(rk) :: sinkD
         real(rk) :: MAXchl2cP, MINchl2cP, alfaP, betaP

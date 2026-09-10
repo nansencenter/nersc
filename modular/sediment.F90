@@ -22,7 +22,7 @@ module ecosmo_sediment
         type (type_dependency_id)             :: id_temp
         type (type_horizontal_dependency_id)  :: id_tbs
         type (type_dependency_id)             :: id_thickness
-        type (type_dependency_id)             :: id_dsnk
+        type (type_state_variable_id)         :: id_dsnk
 
         real(rk) :: crBotStr, resuspRt, sedimRt, burialRt
         real(rk) :: reminSED, TctrlDenit, RelSEDp1, RelSEDp2, reminSEDsi

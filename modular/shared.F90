@@ -75,7 +75,6 @@ module ecosmo_shared
     
          call self%get_parameter( frr,                           "frr",                             "-",          "fraction of dissolved from det.", default=frr)
          call self%get_parameter( couple_co2,                    "couple_co2",                      "",           "switch coupling to carbonate module", default=couple_co2)
-         call self%get_parameter( light_att_chl ,                "light_att_chl",                   "m**2/mgCHL", "chl self-shading", default=light_att_chl )
          call self%get_parameter( prevent_loss_P,                "prevent_loss_P",                  "mgC/m3",     "P biomass low threshold where loss terms are stopped for survival",  default=prevent_loss_P) 
          call self%get_parameter( prevent_loss_Z,                "prevent_loss_Z",                  "mgC/m3",     "Z biomass low threshold where loss terms are stopped for survival",  default=prevent_loss_Z) 
          call self%get_parameter( model_has_silicifier,          "model_has_silicifier",            "",           "global switch for opal", default=model_has_silicifier)
