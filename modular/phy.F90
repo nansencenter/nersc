@@ -73,6 +73,7 @@ module ecosmo_phy
         type (type_dependency_id)             :: id_temp, id_salt, id_par, id_parmean, id_Om_cal
         type (type_diagnostic_variable_id)    :: id_primprod, id_netpp , id_pcal
         type (type_state_variable_id)         :: id_dsnk
+        type (type_diagnostic_variable_id)    :: id_sinkD_diag
 
         real(rk) :: sinkD
         real(rk) :: MAXchl2cP, MINchl2cP, alfaP, betaP
@@ -176,6 +177,7 @@ contains
 
         if (use_community_sinking) then
             call self%register_state_dependency(self%id_dsnk, 'dsnk', 'mgC/m3', 'detritus sinking advector')
+            call self%register_diagnostic_variable(self%id_sinkD_diag, 'sinkD_diag', 'm/d', 'detritus sinking speed of this module')
         end if
 
         if (couple_co2) then
@@ -424,6 +426,7 @@ contains
             ! rhs_det inherently excludes the (frr) dissolved fraction and virtual calcite shell
             rhs_dsnk = rhs_det * self%sinkD
             _ADD_SOURCE_(self%id_dsnk, rhs_dsnk)
+            _SET_DIAGNOSTIC_(self%id_sinkD_diag, self%sinkD)
         end if
 
         ! DOM changes in seconds

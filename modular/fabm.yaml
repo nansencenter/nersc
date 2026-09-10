@@ -4,31 +4,65 @@ instances:
   switches:
     model: nersc/ecosmo_shared
     parameters:
+      # carbon chemistry
       couple_co2 : true                      # Enable carbonate chemistry
-      light_att_chl: 0.0339                  # Optical attenuation due to chlorophyll
-      frr: 0.4                               # Ratio of DOM production when detritus is produced
-      model_has_calcifier : true             # false: model does not have coccolithophores
-      model_has_silicifier: true             # false: model does not have diatoms
-      use_niva_ersem_oxygen_exchange: true   # false: Daewel et al., 2013 surface oxygen exchange, true: ERSEM oxygen exchange configuration
-      use_temp_dependency_phy: true          # false: temperature dependency of P production is turned off, true: temperature dependency of P production is turned on, set q10 for each phytoplankton
-      use_geider_PI_curve: false             # false: use the PI-curve from Yumruktepe et al., 2023, true: Geider et al. (1998) PI-curve
-      depth_dependent_sinking_speed: false   # false: detritus sinking speed does not increase with depth, true: linear increase wrt depth.
+
+      # organic matter decomposition
+      frr: 0.4                                # Ratio of DOM production when detritus is produced
+      use_bact_nutrient_limitation   : .false. # optional implicit bacterial nutrient limitation on remineralization, remineralization slows when virtual bacteria are starved
+
+      # phytoplankton types
+      model_has_silicifier           : .true.  # if diatoms are included in the model, set true
+      model_has_calcifier            : .true.  # if coccoliths are included in the model, set true
+
+      # CaCO3
+      use_virtual_calcite            : .false. 
+      # optional virtual calcite where calcite is only formed upon mortality and grazing
+      # IMPORTANT: will only activate if model_has_calcifier is true above
+      # IMPORTANT: set to false if you have explicit coccolithophores in the model
+      # IMPORTANT: if true, set is_calcifier = .true. for flagellates in the parameters below.
+                
+      # detritus sinking scheme
+      # only one of the following two should be true, or both false for constant detritus sinking speed
+      depth_dependent_sinking_speed  : .false. # optional increasing organic matter sinking speed as a function of depth
+      use_community_sinking          : .false.  # community composition dependent sinking rates
+
+      # phytoplankton growth modifications
+      use_geider_PI_curve            : .false.  # optional use of Geider's PI curve for P photoproduction, if false, use Yumruktepe et al., 2023 ECOSMO II(CHL) formulation
+      use_temp_dependency_phy        : .false.  # optional temperature dependency for P production, if false, Tdep = 1.0_rk, see phy.F90
+                                                        
+      # oxygen exchange
+      use_niva_ersem_oxygen_exchange : .false. # optional oxygen exchange following NIVA ERSEM implementation in oxygen.F90
+
+      # zooplankton behaviour
+      use_prey_switching             : .false. # optional adaptive prey switching (Murdoch 1969), zoo are allowed to change preferences when some preferred prey are absent
+      use_slp_egest_paradigm         : .false. # optional explicit sloppy feeding and waste routing (Steinberg & Landry 2017)
+
   # this has to appear at the very top
   # ==================================
 
+  # ==================================
+  # LIGHT model. This is a fork of gotm/light, but can handle ice algae defined in nersc/ice_algae
   light:
     model: nersc/light
     parameters:
-       g2         : 23.0     # e-folding depth of visible fraction  (m)                     default=23.0
+       g2         : 23.0     # e-folding depth of visible fraction  (m)                     default=23.0 for Type-I
        g1         : 0.35
-       A          : 0.58
+       A          : 0.58     # non-visible fraction (non-PAR)
+  # ==================================
 
+  # ERSEM carbonate chemistry
+  # ==================================
   co2:
     model: ersem/carbonate
     initialization:
       TA: 2300.0
       c: 2200.0
+  # ==================================
 
+
+  # ECOSMO MODULAR MODEL
+  # ==================================
   no3:
     long_name: nitrate
     model: nersc/ecosmo_nutrient
@@ -69,6 +103,10 @@ instances:
       c: 0.1     # detritus (mgC/m**3)
     parameters:
       remin: 0.00315 # Detritus remineralization rate  (1/d)
+      # below is only activated if community sinking is turned on at top of this file (use_community_sinking = true)
+      #min_dsnk: 0.468  # this is the sinkind speed applied to flagellate detritus
+      #max_dsnk: 7.96   # this is the sinkind speed applied to mesozooplankton detritus
+      # if (use_community_sinking = true), OMsink will be ignored
       OMsink: 5.0 # Detritus sinking rate  (m/d)
     coupling:
       no3: no3/c
@@ -85,6 +123,7 @@ instances:
       c: 3.0     # dom (mgC/m**3)
     parameters:
       remin: 0.0315 # DOM remineralization rate  (1/d) (10 times that of detritus)
+      is_dissolved: true # DOM is dissolved, does not sink even if community sinking is active
       OMsink: 0.0 # DOM does not sink 
     coupling:
       no3: no3/c
@@ -110,7 +149,7 @@ instances:
     model: nersc/ecosmo_phy
     parameters:
       mu: 0.43 #0.29           # max growth rate [1/d]. If temp-dependency is activated, this is the value at T=0C, else, constant. Default: 0.43 when Tdep is false.
-      q10: 2.0 #1.67          # Q10 for this phytoplankton. Ignored if temp-dependency is 'false'
+#      q10: 2.0 #1.67          # Q10 for this phytoplankton. Ignored if temp-dependency is 'false'
       m: 0.0411
       m2: 0.285
       Km2: 285.18
@@ -122,6 +161,8 @@ instances:
       MAXchl2cP: 0.04261     # maximum Chl to C ratio (mg Chl/mg C) i.e 23.47 C/Chl
       alfaP: 2.936           # initial slope of the P-I curve (mgC m2/(mgChl day W)**-1) 
       psi: 3.00
+      light_att_chl: 0.0339  # Optical attenuation due to chlorophyll
+      #sinkD: 0.468           # Flagellate detritus sinking speed (m/d) if use_community_sinking = true
     coupling:
       no3: no3/c
       nh4: nh4/c
@@ -140,7 +181,7 @@ instances:
     model: nersc/ecosmo_phy
     parameters:
       mu: 0.62 #0.8           # max growth rate [1/d]. If temp-dependency is activated, this is the value at T=0C, else, constant. Default: 0.62 when Tdep is false.
-      q10: 2.0 #1.55          # Q10 for this phytoplankton. Ignored if temp-dependency is 'false'
+#      q10: 2.0 #1.55          # Q10 for this phytoplankton. Ignored if temp-dependency is 'false'
       m: 0.0411
       m2: 0.285
       Km2: 285.18
@@ -154,6 +195,8 @@ instances:
       alfaP: 4.734           # initial slope of the P-I curve (mgC m2/(mgChl day W)**-1) 
       psi: 3.00
       SiUptLim: 80.0         # Below this value (mgC/m3 silicate), Si uptake is stopped.
+      light_att_chl: 0.0339  # Optical attenuation due to chlorophyll
+      #sinkD: 5.59            # Diatom detritus sinking speed (m/d) if use_community_sinking = true
       is_diatom: true
     coupling:
       no3: no3/c
@@ -175,7 +218,7 @@ instances:
     model: nersc/ecosmo_phy
     parameters:
       mu: 0.4 #0.74           # max growth rate [1/d]. If temp-dependency is activated, this is the value at T=0C, else, constant. Default: 0.4 when Tdep is false.
-      q10: 2.0 #1.42          # Q10 for this phytoplankton. Ignored if temp-dependency is not activated
+#      q10: 2.0 #1.42          # Q10 for this phytoplankton. Ignored if temp-dependency is not activated
       m: 0.0411
       m2: 0.285
       Km2: 285.18
@@ -187,6 +230,8 @@ instances:
       MAXchl2cP: 0.03871     # maximum Chl to C ratio (mg Chl/mg C) i.e 25.83 C/Chl
       alfaP: 2.061           # initial slope of the P-I curve (mgC m2/(mgChl day W)**-1) 
       psi: 3.00
+      light_att_chl: 0.0339  # Optical attenuation due to chlorophyll
+      #sinkD: 5.73            # Coccolithophore detritus sinking speed (m/d) if use_community_sinking = true
       is_calcifier: true
     coupling:
       no3: no3/c
@@ -218,6 +263,7 @@ instances:
       m2: 0.085
       Km2: 285.18
       exc: 0.078    # Zooplankton excretion rate  (1/d)
+      #sinkD: 0.987  # Microzooplankton detritus sinking speed (m/d) if use_community_sinking = true
       gamma1: 0.75
       gamma2: 0.75
       gamma3: 0.75
@@ -241,6 +287,11 @@ instances:
       prey3chl: ccl/chl
       prey4c: det/c
       prey5c: microzoo/c # cannibalism (default: false; i.e. pref5 = 0.0)
+      #prey1sinkD_diag: fla/sinkD_diag
+      #prey2sinkD_diag: dia/sinkD_diag
+      #prey3sinkD_diag: ccl/sinkD_diag
+      #prey4sinkD_diag: det/sinkD_diag
+      #prey5sinkD_diag: microzoo/sinkD_diag
       nh4: nh4/c
       pho: pho/c
       oxy: oxy/c
@@ -270,6 +321,7 @@ instances:
       m2: 0.085
       Km2: 285.18
       exc: 0.078    # Zooplankton excretion rate  (1/d)
+      #sinkD: 7.96   # Mesozooplankton detritus sinking speed (m/d) if use_community_sinking = true
       gamma1: 0.75
       gamma2: 0.75
       gamma3: 0.75
@@ -296,7 +348,13 @@ instances:
       prey3chl: ccl/chl
       prey4c: det/c
       prey5c: microzoo/c
-      prey6c: mesozoo/c # cannibalism (default: false; i.e. pref5 = 0.0)
+      prey6c: mesozoo/c # cannibalism (default: false; i.e. pref6 = 0.0)
+      #prey1sinkD_diag: fla/sinkD_diag
+      #prey2sinkD_diag: dia/sinkD_diag
+      #prey3sinkD_diag: ccl/sinkD_diag
+      #prey4sinkD_diag: det/sinkD_diag
+      #prey5sinkD_diag: microzoo/sinkD_diag
+      #prey6sinkD_diag: mesozoo/sinkD_diag
       nh4: nh4/c
       pho: pho/c
       oxy: oxy/c
@@ -346,6 +404,7 @@ instances:
       dic: co2/c
       alk: co2/TA
       caco3: caco3/c
+      #dsnk: det/dsnk # this line should be commented out if community sinkind is false
     initialization:
       sed1       : 113.6 # mgC/m2 (20mgN in C units)
       sed2       : 56.65 # mgC/m2 (20mgSi in C units)

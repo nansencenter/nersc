@@ -42,8 +42,10 @@ module ecosmo_organic_matter
 
     type (type_state_variable_id)         :: id_dsnk
     type (type_diagnostic_variable_id)    :: id_snkspd
+    type (type_diagnostic_variable_id)    :: id_sinkD_diag
     real(rk)                              :: min_dsnk
     real(rk)                              :: max_dsnk
+    logical                               :: is_dissolved
   contains
       procedure :: initialize
       procedure :: do
@@ -64,13 +66,15 @@ contains
     call self%get_parameter( self%K_bact_PO4, 'K_bact_PO4', 'mgC/m3', 'Bacterial half-saturation for PO4', default=0.05_rk)
     call self%get_parameter( self%min_dsnk, 'min_dsnk', 'm/d', 'minimum community sinking speed', default=0.0_rk, scale_factor=1.0_rk/sedy0)
     call self%get_parameter( self%max_dsnk, 'max_dsnk', 'm/d', 'maximum community sinking speed', default=50.0_rk, scale_factor=1.0_rk/sedy0)
+    call self%get_parameter( self%is_dissolved, 'is_dissolved', '', 'Is this organic matter dissolved?', default=.false.)
 
     ! Register state variables
     call self%register_state_variable(self%id_c, 'c', 'mgC/m3', 'concentration in carbon units', minimum=0.0_rk)
 
-    if (use_community_sinking) then
+    if (use_community_sinking .and. .not. self%is_dissolved) then
         call self%register_state_variable(self%id_dsnk, 'dsnk', 'mgC/m3', 'detritus sinking speed advector', minimum=1.0e-10_rk/sedy0)
         call self%register_diagnostic_variable(self%id_snkspd, 'snkspd', 'm/d', 'community detritus sinking speed', output=output_time_step_averaged)
+        call self%register_diagnostic_variable(self%id_sinkD_diag, 'sinkD_diag', 'm/d', 'detritus sinking speed of this module')
     end if
 
     ! Register dependencies
@@ -86,7 +90,7 @@ contains
 
     ! optional routines ---------- !
     ! depth dependent sinking speed
-    if (depth_dependent_sinking_speed) then
+    if (depth_dependent_sinking_speed .and. .not. self%is_dissolved) then
         call self%get_parameter( self%cz_OMsink,'cz_OMsink',    '1/day',      'detritus sinking rate increase per metre below surface', default=0.0_rk, scale_factor=1.0_rk/sedy0)        
         call self%register_dependency(self%id_depth,standard_variables%depth)
     end if
@@ -155,10 +159,11 @@ contains
     rhs_c = -remineralization
     _ADD_SOURCE_(self%id_c, rhs_c)
 
-    if (use_community_sinking) then
+    if (use_community_sinking .and. .not. self%is_dissolved) then
         _GET_(self%id_dsnk, dsnk)
         rhs_dsnk = -remineralization * (dsnk / max(c, 1e-10_rk))  
         _ADD_SOURCE_(self%id_dsnk, rhs_dsnk)
+        _SET_DIAGNOSTIC_(self%id_sinkD_diag, 0.0_rk)
         _SET_DIAGNOSTIC_(self%id_snkspd, (dsnk / max(c, 1e-10_rk)) * sedy0)
     end if
 
@@ -203,6 +208,8 @@ contains
     real(rk) :: depth
     real(rk) :: det, dsnk
   
+    if (self%is_dissolved) return
+    
     _LOOP_BEGIN_
 
     if (depth_dependent_sinking_speed) then
@@ -231,7 +238,7 @@ contains
     real(rk) :: det, dsnk, meanspd
     
     _LOOP_BEGIN_
-    if (use_community_sinking) then
+    if (use_community_sinking .and. .not. self%is_dissolved) then
         _GET_(self%id_c, det)
         _GET_(self%id_dsnk, dsnk)
         meanspd = dsnk / max(det, 1e-10_rk)
