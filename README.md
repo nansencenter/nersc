@@ -108,6 +108,10 @@ If you are **NOT** running the operational model:
 cp $HOME/FABM/nersc/ecosmo/fabm.yaml ./fabm.yaml
 ```
 
+## Add HYCOM-FABM-ECOSMO compilation instructions
+```bash
+text
+```
 ## Boundary conditions and forcing files (needs revision)
 
 You are expected to have a working copy of relaxation and river forcing files. If this is not your first time, just copy the relaxation and river old experiment number folder as you current experiment number folder. Otherwise, execute:
