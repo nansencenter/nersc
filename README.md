@@ -108,9 +108,9 @@ If you are **NOT** running the operational model:
 cp $HOME/FABM/nersc/ecosmo/fabm.yaml ./fabm.yaml
 ```
 
-## Add HYCOM-FABM-ECOSMO compilation instructions
+## Compile HYCOM-FABM-ECOSMO
 ```bash
-text
+$HOME/NERSC-HYCOM-CICE/bin/compile_model.sh ifort -u
 ```
 ## Boundary conditions and forcing files (needs revision)
 
