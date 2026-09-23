@@ -1,13 +1,10 @@
 instances:
-  lgt:
-    coupling:
-      surface_attenuation_coef_IA: IA_Iatt
-    model: nersc/light
+  light:
+    model: gotm/light
     parameters:
       A: 0.58
       g1: 0.35
       g2: 23.0
-      couple_ice : true
   CO2:
     initialization:
       TA: 2300.0
@@ -33,14 +30,13 @@ instances:
       microzoo: 0.01     # microzooplankton (Zs) (mgC/m**3)
       mesozoo: 0.01      # mesozooplankton (Zl) (mgC/m**3)
       det: 0.1           # detritus (mgC/m**3)
-      detf: 0.00         # fast sinking detritus (mgC/m**3)
       dsnk: 5.78703e-06  # variable that handles variable detritus sinking speed (det*sink) (mgC/m**2/s) 
       dom: 3.0           # labile dissolved organic matter (mgC/m**3)
       opa: 0.1           # opal (mgC/m**3)
       sed1: 113.6        # sediment detritus   (mgC/m2) (20mgN in C units)
       sed2: 56.65        # sediment silicate   (mgC/m2) (20mgSi in C units)
       sed3: 82.2         # sediment phosphorus (mgC/m2) (20mgP in C units)
-    model: nersc/ecosmo_operational
+    model: nersc/ecosmo
     parameters:
 
       # switches 
@@ -51,7 +47,6 @@ instances:
       use_community_sinking: true
       use_cyanos: false
       couple_co2: true
-      couple_ice : true
 
       # phyto growth rates
       muPl: 0.62    # max growth rate for Pl        (1/d)
@@ -135,8 +130,6 @@ instances:
       sinkMesD: 7.96        # Detritus sinking rate, origin Zl             (m/d)
       sinkMicD: 0.987       # Detritus sinking rate, origin Zs             (m/d)
       sinkCoccoD: 5.73      # Detritus sinking rate, origin coccoliths     (m/d)
-      # takes effect if couple_ice: true
-      sinkIdet   : 50.0     # Ice-algae detritus sinking rate  (m/day)
 
       # recycling, nutrients related parameters
       excZl: 0.078          # Zl excretion rate                                       (1/d)
@@ -161,13 +154,7 @@ instances:
       surface_deposition_no3: 0.0
       surface_deposition_pho: 0.0
       surface_deposition_sil: 0.0
-
-      # NECCTON project parameters that are off by default. Now active:
-      exulim: 0.3
-      qexcr: 0.05
-      KsLightDep: 0.001
-      scaleRg: 0.353
-
+    
       # parameters that are not in default use by NERSC, and will only matter if swithes are set accordingly
       # if use_cyanos = true
       MAXchl2nBG: 2.94    # maximum Chl to N ratio Cyanobacteria  (BG)     (mgChl/mmolN)
@@ -179,7 +166,12 @@ instances:
       sinkBgD: 0.0        # Detritus sinking rate, origin Cyanobacteria    (m/d)
       nfixation_minimum_daily_par: 35.0
       # if use_chl_in_PI_curve = false
-      aa : 0.012          # photosynthesis ef-cy            (m**2/W)  
+      aa : 0.012          # photosynthesis ef-cy            (m**2/W) 
+
+      exulim: 0.3
+      qexcr: 0.05
+      KsLightDep: 0.001
+      scaleRg: 0.353
 
   migrator:
     long_name: migrating_zooplankton
@@ -203,11 +195,12 @@ instances:
       daylength: dg/daylength
       migrator_food: dg/migrator_food
       oxygen: ECO/oxy
-    model: nersc/dvm_upper_lower_boundaries_operational
+    model: nersc/dvm_upper_lower_boundaries_simple
     parameters:
-      night_threshold: -3.0
+      lower_boundary: -15.0
+      night_threshold: 0.876
       oxygen_threshold: 62.53
-      upper_boundary: -5.0
+      upper_boundary: -6.5
 
   dw:
     coupling:
@@ -216,78 +209,15 @@ instances:
       target: ECO/mesozoo
     model: nersc/dvm_weight_distribution
     parameters:
-      ratioMig: 0.5 
+      ratioMig: 0.5
 
-  IA:
-    coupling:
-      Wno3   : ECO_no3
-      Wnh4   : ECO_nh4
-      Wpho   : ECO_pho
-      Wsil   : ECO_sil
-      Wdia   : ECO_dia
-      Wfla   : ECO_fla
-      Wdetf  : ECO_detf
-      Wdet   : ECO_det
-      Wmicro : ECO_microzoo
-      Wmeso  : ECO_mesozoo
-    model: nersc/icealgae_G 
-    initialization:
-      Ino3        : 0.0 #1.65       # nitrate   (mmolN/m**2)
-      Inh4        : 0.0 #0.015      # ammonium  (mmolN/m**2)
-      Ipho        : 0.0 #0.1        # phosphate (mmolP/m**2)
-      Isil        : 0.0 #1.65       # silicate  (mmolSi/m**2)
-      Ialg        : 0.0 #1.0        # ice algae (mgC/m**2)
-      Idet        : 0.0 #0.1        # detritus  (mgC/m**2)
-    parameters:
-      # switches
-      couple_ice : true
-      turn_on_additional_diagnostics: true
-      # ice-algae growth terms
-      muIA      : 0.86        # maximum growth rate for IA  (1/d)
-      TctrlIA   : 0.0633      # temperature growth dependency (1/degC)
-      # ice-algae motality terms
-      rM        : 0.05        # maximum IA mortality rate (1/d)
-      rM2       : 0.3         # additional IA mortality rate (1/d)
-      rIalg     : 400         # IA saturation coefficient (mgC/m2)
-      rGr       : 0.2         # accessible proportion of IA for zooplankton #0.086        # maximum IA grazing rate (1/d)
-      # photosynthesis  
-      aaIA      : 0.07        # photosynthesis ef-cy for IA (mgC/mgchla/h/Einst/m/s)
-      Pm        : 0.28        # Maximum photosynthetic rate (mgC/mgchla/h)
-      # half saturation constants
-      rNO3      : 1.6         # N03 half saturation (mmolN/m**3)
-      rPO4      : 0.24        # P04 half saturation (mmolP/m**3)
-      rSi       : 3.9         # SiO2 half saturation (mmolSi/m**3)
-      rnit      : 0.01        # nitrification rate (1/day)
-      Rg        : 0.50        # Zs, Zl half saturation          (mmolN/m**3),                 default=0.50
-      # nutrient cycling
-      rrem      : 0.01        # remineralisation rate (1/day)
-      vn        : 0.2         # preferential uptake for nutrient half saturation (mmolN/m**3)
-      # light attentuation  
-      C0        : 0.3         # part of incoming radiation absorbed in the few centimeter of ice/snow  
-      Catt_ice  : 1.2         # ice attenuation coefficient (1/m)
-      Catt_sno  : 5.0         # snow attenuation coefficient (1/m)
-      ice_alb   : 0.7         # albedo in the dry ice surface
-      g_ia      : 0.00053     # m2/mgC #0.002   # e-folding depth of radiation by ice algea concentration
-      sno_alb   : 0.81        # albedo in the dry snow surface
-      # ice/water parameters
-      diffcoef  : 0.00000001  # molecular diffusion coefficient for dissolved nutrients at the ice-water interface (m**2/s)
-      fr        : 0.5         # relative brine fraction (unitless)
-      Zbot      : 0.05        # biological active layer thickness (m)
-      surv_prop : 0.5         # proportion of diatom surviving in the sea-ice
-      dice      : 900         # density of ice (kg/m**3)
-      dwater    : 1026        # density of sea water (kg/m**3)
-      num_melting : 15.0      # numerical melting factor (1/day)
-      # zooplankton feeding preferences and efficiencies
-      prefZsPs   : 0.72       # Grazing preference Zs on Ps     (-),                          default=0.70
-      prefZsPl   : 0.26       # Grazing preference Zs on Pl     (-),                          default=0.25
-      prefZsD    : 0.02       # Grazing preference Zs on Det.   (-),                          default=0.00
-      prefZlPs   : 0.09       # Grazing preference Zl on Ps     (-),                          default=0.10
-      prefZlPl   : 0.75       # Grazing preference Zl on Pl     (-),                          default=0.85
-      prefZlZs   : 0.14       # Grazing preference Zl on Zs     (-),                          default=0.15
-      prefZlD    : 0.02       # Grazing preference Zl on Det.   (-),                          default=0.00
-      gammaZlp   : 0.75       # Zl assim. eff. on plankton      (-),                          default=0.75
-      gammaZsp   : 0.75       # Zs assim. eff. on plankton      (-),                          default=0.75
-      # zooplankton grazing and feeding rates
-      GrZlP      : 0.80       # Grazing rate Zl on Phyto        (1/d),                        default=0.80
-      GrZsP      : 1.00       # Grazing rate Zs on Phyto        (1/d),                        default=1.00
-      GrZlZ      : 0.50       # Grazing rate Zl on Zs           (1/d),                        default=0.50
+#  dm:
+#    coupling:
+#      integral: dw/integral
+#      migrator_integral_random_weights: dw/migrator_integral_random_weights
+#      migrator_random_weights: dw/migrator_random_weights
+#      target: ECO/mesozoo
+#    long_name: distribute_migrators
+#    model: nersc/dvm_move
+#    parameters:
+#      tstep: 600.0 

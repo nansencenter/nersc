@@ -22,9 +22,11 @@ contains
       use fabm_nersc_ecosmo_gmd_2023_25
       use dvm_conservative_migrator
       use dvm_get_dependencies
-      use dvm_upper_lower_boundaries
+      use dvm_upper_lower_boundaries_operational
       use dvm_weight_distribution
       use dvm_move
+      use fabm_nersc_icealgae_G
+      use nersc_light
       ! Add new models here
 
       class (type_factory),intent(in) :: self
@@ -37,9 +39,11 @@ contains
          case ('ecosmo_gmd_2023_25');       allocate(type_nersc_ecosmo_gmd_2023_25::model)
          case ('dvm_conservative_migrator'); allocate(type_conservative_migrator::model)
          case ('dvm_get_dependencies'); allocate(type_get_dependencies::model)
-         case ('dvm_upper_lower_boundaries'); allocate(type_upper_lower_boundaries::model)
+         case ('dvm_upper_lower_boundaries_operational'); allocate(type_upper_lower_boundaries_operational::model)
          case ('dvm_weight_distribution'); allocate(type_weight_distribution::model)
          case ('dvm_move'); allocate(type_move::model)
+         case ('icealgae_G'); allocate(type_nersc_icealgae_G::model)
+         case ('light'); allocate(type_nersc_light::model)
          ! Add new models here
       end select
 
