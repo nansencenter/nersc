@@ -107,6 +107,7 @@
       real(rk) :: GrZlCocco, GrZsCocco
       real(rk) :: sinkCocco
       real(rk) :: incCarbR, calcR, calcDis
+      real(rk) :: Rain0, Kcalom, ndissC, fdissC
       real(rk) :: SiUptLim
 
       ! ECOSMO modules
@@ -238,7 +239,7 @@
    call self%get_parameter( self%Km2Zl, 'Km2Zl',         'mgC/m**3',      'half saturation for Zl higher mortality rate', default=150.0_rk)
    call self%get_parameter( self%BioC(16), 'mZs',         '1/day',      'Zs mortality rate',               default=0.20_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%m2Zs, 'm2Zs',         '1/day',      'Zs higher mortality rate',               default=0.0_rk,  scale_factor=1.0_rk/sedy0)
-   call self%get_parameter( self%Km2Ps, 'Km2Zs',         'mgC/m**3',      'half saturation for Zs higher mortality rate', default=150.0_rk)
+   call self%get_parameter( self%Km2Zs, 'Km2Zs',         'mgC/m**3',      'half saturation for Zs higher mortality rate', default=150.0_rk)
    call self%get_parameter( self%BioC(17), 'excZl',       '1/day',      'Zl excretion rate',               default=0.06_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(18), 'excZs',       '1/day',      'Zs excretion rate',               default=0.08_rk,  scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%BioC(19), 'gammaZlp',    '1',          'Zl assim. eff. on plankton',      default=0.75_rk)
@@ -295,7 +296,11 @@
    call self%get_parameter( self%sinkCocco,  'sinkCocco',    'm/day',      'Coccolithophore sinking rate',             default=0.0_rk,   scale_factor=1.0_rk/sedy0)
    call self%get_parameter( self%incCarbR , 'incCarbR',        'TBF',      'increa carb.rat cocc',  default=1.42_rk) 
    call self%get_parameter( self%calcR , 'calcR',        '-',      'Maximum calcification to organic carbon production RCaCO3',  default=0.4_rk)
+   call self%get_parameter( self%Rain0 , 'Rain0',        '-',      'maximum Rain Ratio (PIC:POC) within calcifiers',  default=1.0_rk)
+   call self%get_parameter( self%Kcalom , 'Kcalom',      '-',      'half-saturation constant for calcifier Rain Ratio dependence on calcite saturation state',  default=1.0_rk)
    call self%get_parameter( self%calcDis , 'calcDis',        '1/day',      'calcite dissolution rate',  default=0.03_rk,  scale_factor=1.0_rk/sedy0)
+   call self%get_parameter( self%ndissC , 'ndissC',      '-',      'power of the dissolution law (Keir 1980)',  default=2.22_rk)
+   call self%get_parameter( self%fdissC , 'fdissC',      '-',      'fraction of grazed calcite dissolved in gut',  default=0.5_rk)
  
    ! chlorophyll-a constants for dia and fla 
    call self%get_parameter( self%MINchl2nPs, 'MINchl2nPs', 'mgChl/mmolN', 'minimum Chl to N ratio Ps', default=0.50_rk, scale_factor=redf(11)*redf(16))
@@ -367,9 +372,9 @@
      else
        call self%add_to_aggregate_variable(total_chlorophyll, self%id_cocco, scale_factor=1.0_rk/60.0_rk)
      end if
-     call self%register_state_variable( self%id_caco3,       'caco3',      'mmol/m3',    'calcite',             minimum=1.0e-14_rk,      &
+     call self%register_state_variable( self%id_caco3,       'caco3',      'mgC/m3',     'calcite',             minimum=1.0e-14_rk,      &
                                       initial_value=1e-3_rk,maximum=1000.0_rk )
-     call self%register_state_variable( self%id_sed4,     'sed4',    'mmol/m2',    'sediment calcite',         minimum=0.0_rk , &
+     call self%register_state_variable( self%id_sed4,     'sed4',    'mgC/m2',     'sediment calcite',         minimum=0.0_rk , &
                                       initial_value=1e-2_rk*redf(6),maximum=10000.0_rk )      
    end if
    if (self%use_chl) then
@@ -589,6 +594,7 @@ end subroutine initialize
    end if
    if (self%use_coccolithophores) then
      _GET_(self%id_cocco,cocco)
+     _GET_(self%id_caco3,caco3)
      _GET_(self%id_Om_cal,Om_cal)
    end if
    if (self%use_chl) then
@@ -596,7 +602,6 @@ end subroutine initialize
      _GET_(self%id_flachl,flachl)
      if (self%use_coccolithophores) then
        _GET_(self%id_coccochl,coccochl)
-       _GET_(self%id_caco3,caco3)
      end if
      if (self%use_cyanos) then
        _GET_(self%id_bgchl,bgchl)
@@ -1014,11 +1019,11 @@ end subroutine initialize
    if (self%couple_ice) then
      rhs_dom = self%frr*(dxxdet + dxxdetf) - fremDOM * dom &
               + self%BioC(2) * Ps_prod * exu_fla * fla &
-              + self%BioC(1) * Ps_prod * exu_dia * dia 
+              + self%BioC(1) * Pl_prod * exu_dia * dia 
    else
      rhs_dom = self%frr*dxxdet - fremDOM * dom &
             + self%BioC(2) * Ps_prod * exu_fla * fla &
-            + self%BioC(1) * Ps_prod * exu_dia * dia 
+            + self%BioC(1) * Pl_prod * exu_dia * dia 
    end if
    if (self%use_cyanos) then
       rhs_dom = rhs_dom + self%BioC(28) * (Bg_prod + Bg_fix) * exu_bg * bg
@@ -1111,26 +1116,14 @@ end subroutine initialize
 
    ! CaCO3
    if (self%use_coccolithophores) then
-    !  Rstar = self%calcR * Cocco_prod * self%incCarbR * max(0.0001,temp/(2.0 + temp)) * max(1.0,0.5*cocco*redf(16)*redf(11)) 
-      Rstar = self%calcR * Cocco_prod * max(0.0001,temp/(2.0 + temp)) * max(1.0,0.5*cocco*redf(16)*redf(11))
-!      Pcaco3 = Rstar * ( (self%muCocco*Cocco_prod - 0.5 * self%mortCocco*cocco_loss*caco3_loss)*cocco - 0.5 * ZsonCocco*microzoo*caco3_loss - 0.5 * ZlonCocco*mesozoo*caco3_loss )
-      Pcaco3 = Rstar * ( (self%muCocco*Cocco_prod - 0.5 *self%mortCocco*cocco_loss -0.5*highMortCocco*cocco_loss )*cocco - 0.5 *ZsonCocco*microzoo - 0.5 * ZlonCocco*mesozoo )
-      Lstar = self%calcDis * max(0.0,1.0 - Om_cal)
-!      if (Lstar.gt.0.0) then
-!        write(*,*)"Lstar negative",Lstar,self%calcDis,Om_cal
-!      endif
-!      if (Pcaco3.gt.0.0) then
-!        write(*,*)"Pstar positive",Rstar
-!      endif
-      !caco3_loss = max(sign(-1.0_rk,caco3-0.0001_rk),0.0_rk) ! caco3 - temporary for now
-!      if (caco3_loss.eq.0 .and. Pcaco3.lt.0.0) then
-!        rhs = 0.
-!        write(*,*)"HERE"
-!      else
-!      rhs = Pcaco3 - Lstar * caco3 * caco3_loss
+      Rstar = self%Rain0 * max(0.0_rk, (Om_cal - 1.0_rk) / (Om_cal - 1.0_rk + self%Kcalom))
+      Rstar = Rstar * (max(temp, 0.0_rk) / (2.0_rk + max(temp, 0.0_rk)))
+
+      Pcaco3 = Rstar * ( (1.0_rk - self%frr) * (self%mortCocco + highMortCocco) * cocco_loss * cocco &
+                       + (1.0_rk - self%fdissC) * (ZsonCocco * microzoo + ZlonCocco * mesozoo) )
+
+      Lstar = self%calcDis * max(1.0_rk - Om_cal, 0.0_rk)**self%ndissC
       rhs = Pcaco3 - Lstar * caco3
-!      end if
-      !write(*,*)rhs*480.,caco3,caco3+rhs*480.
       _SET_ODE_(self%id_caco3, rhs) 
    end if 
 
@@ -1146,16 +1139,13 @@ end subroutine initialize
             + frem*det + fremDOM*dom - Prod_Dia_Fla - Prod_BG) 
      end if
      if (self%use_coccolithophores) then
-!        rhs = rhs - ( Prod_Cocco * self%incCarbR ) + Pcaco3 - Lstar * caco3
-        rhs = rhs - Prod_Cocco * redf(16) - Pcaco3 + Lstar * caco3 !* caco3_loss
+        rhs = rhs + redf(16) * (- Prod_Cocco - Pcaco3 + Lstar * caco3)
      endif
      _SET_ODE_(self%id_dic, rhs)
 
      rhs = redf(16)*(rhs_amm-rhs_nit)*redf(11) - 0.5_rk*rhs_oxy*(1._rk-bioom6)
      if (self%use_coccolithophores) then
-!        rhs = rhs + redf(16) * (- Pcaco3 + Lstar * caco3)
-!        rhs = rhs + redf(16) * 2. * (- Pcaco3 + Lstar * caco3 * caco3_loss)
-        rhs = rhs + redf(16) * 2. * (- Pcaco3 + Lstar * caco3)
+        rhs = rhs + redf(16) * 2.0_rk * (- Pcaco3 + Lstar * caco3)
      endif
      _SET_ODE_(self%id_alk, rhs)
    end if
@@ -1473,8 +1463,14 @@ end subroutine initialize
         end if
 
         if (self%couple_co2) then
-          _SET_BOTTOM_EXCHANGE_(self%id_dic, redf(16)*(Rsdenit+2*Rsa)*sed1)
-          alk_flux = redf(16)*redf(11)*((Rsdenit+Rsa+bioom5*Rsdenit)*sed1) - 0.5_rk*flux*(1._rk-bioom6)
+          if (self%use_coccolithophores) then
+            _SET_BOTTOM_EXCHANGE_(self%id_dic, redf(16)*((Rsdenit+2.0_rk*Rsa)*sed1 + self%BioC(42)*sed4))
+            alk_flux = redf(16)*redf(11)*((Rsdenit+Rsa+bioom5*Rsdenit)*sed1) - 0.5_rk*flux*(1._rk-bioom6) &
+                       + 2.0_rk*redf(16)*self%BioC(42)*sed4
+          else
+            _SET_BOTTOM_EXCHANGE_(self%id_dic, redf(16)*(Rsdenit+2.0_rk*Rsa)*sed1)
+            alk_flux = redf(16)*redf(11)*((Rsdenit+Rsa+bioom5*Rsdenit)*sed1) - 0.5_rk*flux*(1._rk-bioom6)
+          end if
           _SET_BOTTOM_EXCHANGE_(self%id_alk, alk_flux)
         end if
         !--try out for phosphate ute 2.6.2010
